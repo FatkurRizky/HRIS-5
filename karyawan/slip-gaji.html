@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kerabat — Slip Gaji</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800 font-sans">
+
+    <!-- CONTAINER UTAMA -->
+    <div class="w-full max-w-6xl mx-auto bg-white min-h-screen shadow-sm flex flex-col">
+        
+        <!-- HEADER -->
+        <header class="flex justify-between items-center px-5 md:px-8 py-4 border-b border-gray-100">
+            <div class="font-extrabold text-[#d95d39] text-xl tracking-tight">Kerabat</div>
+            <div class="flex items-center gap-4 text-sm font-medium">
+                <span>Bima Pratama</span>
+                <a href="#" class="text-gray-500 hover:text-gray-800">Keluar</a>
+            </div>
+        </header>
+
+        <!-- NAVIGASI -->
+        <nav class="flex gap-3 px-5 md:px-8 py-4 bg-white sticky top-0 z-10 border-b border-gray-50 overflow-x-auto">
+            <a href="index.html" class="whitespace-nowrap px-5 py-2 rounded-full text-sm font-semibold bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 transition">Absen</a>
+            <a href="cuti.html" class="whitespace-nowrap px-5 py-2 rounded-full text-sm font-semibold bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 transition">Cuti saya</a>
+            <a href="slip-gaji.html" class="whitespace-nowrap px-5 py-2 rounded-full text-sm font-bold bg-[#d95d39] text-white shadow-sm border border-[#d95d39] transition">Slip gaji</a>
+        </nav>
+
+        <main class="flex-1 px-5 md:px-8 py-6 md:py-10 flex justify-center">
+            
+            <!-- KARTU SLIP GAJI -->
+            <section class="w-full max-w-lg border border-gray-200 rounded-2xl p-6 md:p-8 shadow-sm bg-white">
+                
+                <div class="border-b border-gray-200 pb-5 mb-5 text-center md:text-left">
+                    <h3 class="text-lg font-extrabold text-gray-900 mb-1">Slip gaji Oktober 2026</h3>
+                    <p class="text-sm font-bold text-gray-700">Bima Pratama</p>
+                    <p class="text-xs text-gray-500">Backend Developer</p>
+                </div>
+
+                <div class="flex flex-col gap-4 text-sm">
+                    <!-- Pendapatan -->
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Gaji pokok</span>
+                        <strong class="text-gray-900 font-bold">Rp 12.000.000</strong>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Tunjangan tetap</span>
+                        <strong class="text-gray-900 font-bold">Rp 2.500.000</strong>
+                    </div>
+                    <div class="flex justify-between items-center pb-3 border-b border-dashed border-gray-200">
+                        <span class="text-gray-600">Lembur (3 jam)</span>
+                        <strong class="text-gray-900 font-bold">Rp 312.139</strong>
+                    </div>
+
+                    <!-- Potongan -->
+                    <div class="flex justify-between items-center pt-1">
+                        <span class="text-gray-600">BPJS</span>
+                        <strong class="text-red-600 font-bold">- Rp 480.000</strong>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Keterlambatan (1x)</span>
+                        <strong class="text-red-600 font-bold">- Rp 50.000</strong>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Alpa (0 hari)</span>
+                        <strong class="text-gray-900 font-bold">Rp 0</strong>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">PPh 21 (estimasi)</span>
+                        <strong class="text-red-600 font-bold">- Rp 466.607</strong>
+                    </div>
+                </div>
+
+                <!-- Hasil Akhir -->
+                <div class="mt-8 bg-[#fafafa] rounded-xl p-5 border border-gray-200 flex flex-col items-center md:flex-row md:justify-between gap-2">
+                    <span class="text-sm font-bold text-gray-600 uppercase tracking-wider">Diterima</span>
+                    <strong class="text-3xl font-black text-[#d95d39]">Rp 13.815.532</strong>
+                </div>
+
+                <button class="w-full bg-white text-[#d95d39] border-2 border-[#d95d39] font-bold py-3 mt-6 rounded-xl text-sm hover:bg-orange-50 transition flex justify-center items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Unduh PDF
+                </button>
+
+            </section>
+        </main>
+    </div>
+</body>
+</html>

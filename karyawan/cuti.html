@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kerabat — Cuti Saya</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800 font-sans">
+
+    <!-- CONTAINER UTAMA -->
+    <div class="w-full max-w-6xl mx-auto bg-white min-h-screen shadow-sm flex flex-col">
+        
+        <!-- HEADER -->
+        <header class="flex justify-between items-center px-5 md:px-8 py-4 border-b border-gray-100">
+            <div class="font-extrabold text-[#d95d39] text-xl tracking-tight">Kerabat</div>
+            <div class="flex items-center gap-4 text-sm font-medium">
+                <span>Bima Pratama</span>
+                <a href="#" class="text-gray-500 hover:text-gray-800">Keluar</a>
+            </div>
+        </header>
+
+        <!-- NAVIGASI -->
+        <nav class="flex gap-3 px-5 md:px-8 py-4 bg-white sticky top-0 z-20 border-b border-gray-50 overflow-x-auto">
+            <a href="index.html" class="whitespace-nowrap px-5 py-2 rounded-full text-sm font-semibold bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 transition">Absen</a>
+            <a href="cuti.html" class="whitespace-nowrap px-5 py-2 rounded-full text-sm font-bold bg-[#d95d39] text-white shadow-sm border border-[#d95d39] transition">Cuti saya</a>
+            <a href="slip-gaji.html" class="whitespace-nowrap px-5 py-2 rounded-full text-sm font-semibold bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 transition">Slip gaji</a>
+        </nav>
+
+        <main class="flex-1 px-5 md:px-8 py-6">
+            
+            <!-- GRID RESPONSIF -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+                
+                <!-- KOLOM KIRI: FORM PENGAJUAN -->
+                <div class="lg:col-span-1">
+                    <section class="bg-[#fafafa] border border-gray-200 rounded-2xl p-5 md:p-6 shadow-sm lg:sticky lg:top-24">
+                        <h3 class="text-base font-bold text-gray-800 mb-5">Ajukan cuti</h3>
+                        <form class="flex flex-col gap-4">
+                            
+                            <div class="flex flex-col gap-2">
+                                <label class="text-xs font-bold text-gray-700">Jenis</label>
+                                <select class="w-full bg-white border border-gray-300 text-sm rounded-xl px-4 py-2.5 outline-none focus:border-[#d95d39] focus:ring-1 focus:ring-[#d95d39] transition">
+                                    <option>Cuti tahunan</option>
+                                    <option>Izin Pribadi</option>
+                                    <option>Sakit</option>
+                                </select>
+                            </div>
+                            
+                            <!-- INPUT TANGGAL -->
+                            <div class="flex flex-col gap-2">
+                                <label class="text-xs font-bold text-gray-700">Tanggal</label>
+                                <div class="flex gap-3">
+                                    <div class="flex-1 flex flex-col gap-1">
+                                        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Mulai</span>
+                                        <input type="date" class="w-full bg-white border border-gray-300 text-sm rounded-xl px-3 py-2.5 outline-none focus:border-[#d95d39] focus:ring-1 focus:ring-[#d95d39] transition text-gray-700">
+                                    </div>
+                                    <div class="flex-1 flex flex-col gap-1">
+                                        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Selesai</span>
+                                        <input type="date" class="w-full bg-white border border-gray-300 text-sm rounded-xl px-3 py-2.5 outline-none focus:border-[#d95d39] focus:ring-1 focus:ring-[#d95d39] transition text-gray-700">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- INPUT ALASAN -->
+                            <div class="flex flex-col gap-2">
+                                <label class="text-xs font-bold text-gray-700">Alasan</label>
+                                <textarea rows="3" placeholder="Tulis alasan singkat" class="w-full bg-white border border-gray-300 text-sm rounded-xl px-4 py-2.5 outline-none focus:border-[#d95d39] focus:ring-1 focus:ring-[#d95d39] transition resize-none"></textarea>
+                            </div>
+                            <button type="button" class="w-full bg-[#d95d39] text-white font-bold py-3 mt-2 rounded-xl text-sm shadow-sm hover:bg-[#c45332] transition">Kirim pengajuan</button>
+                        </form>
+                    </section>
+                </div>
+
+                <!-- KOLOM KANAN: RIWAYAT PENGAJUAN -->
+                <div class="lg:col-span-2">
+                    <section class="border border-gray-200 rounded-2xl p-5 md:p-6 shadow-sm bg-white">
+                        <h3 class="text-base font-bold text-gray-800 mb-6">Pengajuan saya</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            <!-- Item 1: Cuti Tahunan -->
+                            <div class="border border-gray-100 rounded-xl p-5 shadow-sm relative">
+                                <div class="flex justify-between items-start mb-8">
+                                    <div>
+                                        <strong class="block text-sm text-gray-900">Cuti tahunan</strong>
+                                        <span class="text-xs text-gray-500 mt-1 block">22 sampai 24 Okt</span>
+                                    </div>
+                                    <span class="bg-[#e2f5ec] text-[#1f8b5c] px-2.5 py-1 rounded-md text-xs font-bold">Disetujui</span>
+                                </div>
+                                
+                                <!-- Tracker -->
+                                <div class="relative flex justify-between items-center px-4">
+                                    <div class="absolute top-1.5 left-8 right-8 h-0.5 bg-[#1f8b5c]"></div>
+                                    <div class="relative z-10 flex flex-col items-center gap-2 bg-white px-2">
+                                        <div class="w-3.5 h-3.5 rounded-full bg-[#1f8b5c] ring-4 ring-white"></div>
+                                        <span class="text-[11px] font-bold text-gray-800">Diajukan</span>
+                                    </div>
+                                    <div class="relative z-10 flex flex-col items-center gap-2 bg-white px-2">
+                                        <div class="w-3.5 h-3.5 rounded-full bg-[#1f8b5c] ring-4 ring-white"></div>
+                                        <span class="text-[11px] font-bold text-gray-800">Manager</span>
+                                    </div>
+                                    <div class="relative z-10 flex flex-col items-center gap-2 bg-white px-2">
+                                        <div class="w-3.5 h-3.5 rounded-full bg-[#1f8b5c] ring-4 ring-white"></div>
+                                        <span class="text-[11px] font-bold text-gray-800">HR</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Item 2: Izin -->
+                            <div class="border border-gray-100 rounded-xl p-5 shadow-sm relative">
+                                <div class="flex justify-between items-start mb-8">
+                                    <div>
+                                        <strong class="block text-sm text-gray-900">Izin</strong>
+                                        <span class="text-xs text-gray-500 mt-1 block">9 Okt</span>
+                                    </div>
+                                    <span class="bg-[#e2f5ec] text-[#1f8b5c] px-2.5 py-1 rounded-md text-xs font-bold">Disetujui</span>
+                                </div>
+                                
+                                <!-- Tracker -->
+                                <div class="relative flex justify-between items-center px-4">
+                                    <div class="absolute top-1.5 left-8 right-8 h-0.5 bg-[#1f8b5c]"></div>
+                                    <div class="relative z-10 flex flex-col items-center gap-2 bg-white px-2">
+                                        <div class="w-3.5 h-3.5 rounded-full bg-[#1f8b5c] ring-4 ring-white"></div>
+                                        <span class="text-[11px] font-bold text-gray-800">Diajukan</span>
+                                    </div>
+                                    <div class="relative z-10 flex flex-col items-center gap-2 bg-white px-2">
+                                        <div class="w-3.5 h-3.5 rounded-full bg-[#1f8b5c] ring-4 ring-white"></div>
+                                        <span class="text-[11px] font-bold text-gray-800">Manager</span>
+                                    </div>
+                                    <div class="relative z-10 flex flex-col items-center gap-2 bg-white px-2">
+                                        <div class="w-3.5 h-3.5 rounded-full bg-[#1f8b5c] ring-4 ring-white"></div>
+                                        <span class="text-[11px] font-bold text-gray-800">HR</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                        </div>
+
+                    </section>
+                </div>
+
+            </div>
+        </main>
+    </div>
+</body>
+</html>
