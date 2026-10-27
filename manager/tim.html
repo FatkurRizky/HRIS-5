@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tim Saya - Kerabat HRIS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="sidebar.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="bg-[#f0f4f8] flex text-gray-800 min-h-screen">
+    <!-- Panggil Sidebar -->
+    <app-sidebar></app-sidebar>
+
+    <main class="flex-1 p-8 pt-20 md:pt-8 overflow-y-auto">
+        <!-- Header Halaman -->
+        <div class="mb-8 border-b border-gray-200 pb-4 flex flex-col lg:flex-row justify-between lg:items-end gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">Tim saya</h1>
+                <p class="text-gray-500">Sari Utami &middot; Manager Engineering</p>
+            </div>
+            
+            <!-- BARIS SEARCH & FILTER TANGGAL -->
+            <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                <!-- Filter Tanggal (Date Picker) -->
+                <div class="relative w-full sm:w-48">
+                    <input type="date" id="dateFilter" class="block w-full px-4 py-2.5 border border-gray-200 rounded-lg leading-5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2a5b8a] focus:border-[#2a5b8a] sm:text-sm shadow-sm transition-colors cursor-pointer" value="2026-10-20">
+                </div>
+
+                <!-- Search Bar -->
+                <div class="relative w-full sm:w-72">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                    <input type="text" id="searchTeam" class="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2a5b8a] focus:border-[#2a5b8a] sm:text-sm transition-colors shadow-sm" placeholder="Cari nama atau jabatan...">
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[800px]">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-500 text-xs border-b border-gray-200 uppercase tracking-wider font-semibold">
+                            <th class="py-4 px-6">Nama</th>
+                            <th class="py-4 px-6">Jabatan</th>
+                            <th class="py-4 px-6">Kehadiran</th>
+                            <th class="py-4 px-6">Terlambat</th>
+                            <th class="py-4 px-6">Lembur</th>
+                            <th class="py-4 px-6">Sisa cuti</th>
+                            <th class="py-4 px-6 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="teamTableBody" class="divide-y divide-gray-100">
+                        <!-- Baris 1: Bima -->
+                        <tr class="hover:bg-gray-50 transition-colors team-row">
+                            <td class="py-4 px-6">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">BP</div>
+                                    <span class="font-semibold text-gray-900 team-name">Bima Pratama</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 text-gray-600 team-role">Backend Developer</td>
+                            <td class="py-4 px-6">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#e6f4ea] text-[#1e8e3e]">Hadir 08:02</span>
+                            </td>
+                            <td class="py-4 px-6 text-gray-600">1x</td>
+                            <td class="py-4 px-6 text-gray-600">3 jam</td>
+                            <td class="py-4 px-6 text-gray-600 font-medium">12 hari</td>
+                            <td class="py-4 px-6 text-center">
+                                <!-- Tombol Lihat Riwayat -->
+                                <button class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#e8f0fe] text-[#1967d2] hover:bg-[#d2e3fc] rounded-lg text-xs font-bold transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                                    Riwayat
+                                </button>
+                            </td>
+                        </tr>
+                        
+                        <!-- Baris 2: Dewi -->
+                        <tr class="hover:bg-gray-50 transition-colors team-row">
+                            <td class="py-4 px-6">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-[#e8f0fe] text-[#1967d2] flex items-center justify-center font-bold text-sm">DL</div>
+                                    <span class="font-semibold text-gray-900 team-name">Dewi Lestari</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 text-gray-600 team-role">UI Designer</td>
+                            <td class="py-4 px-6">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#e6f4ea] text-[#1e8e3e]">Hadir 07:58</span>
+                            </td>
+                            <td class="py-4 px-6 text-gray-600">0x</td>
+                            <td class="py-4 px-6 text-gray-600">0 jam</td>
+                            <td class="py-4 px-6 text-gray-600 font-medium">10 hari</td>
+                            <td class="py-4 px-6 text-center">
+                                <button class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#e8f0fe] text-[#1967d2] hover:bg-[#d2e3fc] rounded-lg text-xs font-bold transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                                    Riwayat
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- Baris 3: Kevin -->
+                        <tr class="hover:bg-gray-50 transition-colors team-row">
+                            <td class="py-4 px-6">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-[#fef3c7] text-[#b45309] flex items-center justify-center font-bold text-sm">KS</div>
+                                    <span class="font-semibold text-gray-900 team-name">Kevin Santoso</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 text-gray-600 team-role">QA Engineer</td>
+                            <td class="py-4 px-6">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#fef3c7] text-[#b45309]">Sakit</span>
+                            </td>
+                            <td class="py-4 px-6 text-red-500 font-bold">2x</td>
+                            <td class="py-4 px-6 text-gray-600">5 jam</td>
+                            <td class="py-4 px-6 text-gray-600 font-medium">8 hari</td>
+                            <td class="py-4 px-6 text-center">
+                                <button class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#e8f0fe] text-[#1967d2] hover:bg-[#d2e3fc] rounded-lg text-xs font-bold transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                                    Riwayat
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pesan Kosong (muncul saat search tidak menemukan hasil) -->
+            <div id="emptyMessage" class="hidden text-center py-8 text-gray-500 border-t border-gray-100">
+                Data anggota tim tidak ditemukan.
+            </div>
+        </div>
+    </main>
+
+    <!-- SCRIPT LOGIKA PENCARIAN & FILTER TANGGAL -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('searchTeam');
+            const dateFilter = document.getElementById('dateFilter');
+            const teamRows = document.querySelectorAll('.team-row');
+            const emptyMessage = document.getElementById('emptyMessage');
+
+            // Logika Search
+            searchInput.addEventListener('input', function() {
+                const keyword = this.value.toLowerCase();
+                let hasVisibleRow = false;
+
+                teamRows.forEach(row => {
+                    const name = row.querySelector('.team-name').textContent.toLowerCase();
+                    const role = row.querySelector('.team-role').textContent.toLowerCase();
+
+                    if (name.includes(keyword) || role.includes(keyword)) {
+                        row.style.display = '';
+                        hasVisibleRow = true;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+
+                if (!hasVisibleRow) {
+                    emptyMessage.classList.remove('hidden');
+                } else {
+                    emptyMessage.classList.add('hidden');
+                }
+            });
+
+            // Simulasi Logika Filter Tanggal
+            dateFilter.addEventListener('change', function() {
+                // Di sistem nyata (seperti Next.js/NestJS nanti), ini akan memanggil API/Database 
+                // untuk me-refresh data tabel berdasarkan tanggal yang dipilih (this.value).
+                console.log("Memuat riwayat absensi untuk tanggal:", this.value);
+                
+                // Animasi visual sementara untuk simulasi loading data
+                const tbody = document.getElementById('teamTableBody');
+                tbody.style.opacity = '0.3';
+                setTimeout(() => {
+                    tbody.style.opacity = '1';
+                }, 400);
+            });
+        });
+    </script>
+</body>
+</html>
