@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kerabat Admin - Pengguna</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0b0f17; color: #94a3b8; }
+        .card-bg { background-color: #111827; }
+        .nav-active { border-color: #a855f7; box-shadow: 0 0 10px rgba(168,85,247,0.2); color: white; }
+        .text-purple-glow { color: #d8b4fe; }
+        /* Custom select styling */
+        select { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 0.5rem center; background-size: 1em; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans">
+    <!-- Navbar -->
+    <nav class="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+        <div class="flex items-center space-x-6">
+            <h1 class="text-xl font-semibold text-purple-glow">Kerabat Admin</h1>
+            <span class="text-[10px] border border-gray-700 px-2 py-1 rounded bg-gray-800/50 text-gray-300 font-medium">SUPER ADMIN</span>
+            <a href="ikhtisar.html" class="hover:text-white px-4 py-2 transition text-sm">Ikhtisar</a>
+            <a href="pengguna.html" class="nav-active px-4 py-2 rounded-lg transition text-sm">Pengguna dan peran</a>
+            <a href="pengaturan.html" class="hover:text-white px-4 py-2 transition text-sm">Pengaturan sistem</a>
+        </div>
+        <div class="flex items-center space-x-4">
+            <span class="text-sm text-gray-400">admin@kerabat.id</span>
+            <a href="#" class="flex items-center space-x-2 text-sm text-gray-400 hover:text-white bg-gray-800/50 hover:bg-[#ef4444] border border-gray-700 hover:border-[#ef4444] px-3 py-1.5 rounded-lg transition-all duration-200">
+                <span>Keluar</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                </svg>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Content -->
+    <main class="flex-1 p-6">
+        <div class="card-bg border border-gray-800 rounded-xl p-6">
+            <!-- Search -->
+            <div class="mb-6">
+                <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Cari nama atau email" class="bg-[#0b0f17] border border-gray-800 rounded-lg px-4 py-2.5 w-72 text-sm focus:outline-none focus:border-purple-500 text-gray-300 placeholder-gray-600 transition">
+            </div>
+
+            <!-- Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm whitespace-nowrap">
+                    <thead>
+                        <tr class="border-b border-gray-800 text-gray-500 font-medium">
+                            <th class="pb-4 font-normal">Pengguna</th>
+                            <th class="pb-4 font-normal">Email</th>
+                            <th class="pb-4 font-normal">Peran</th>
+                            <th class="pb-4 font-normal">Status</th>
+                            <th class="pb-4 font-normal text-right"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody" class="text-gray-400">
+                        <tr class="border-b border-gray-800/50 hover:bg-gray-800/20 transition">
+                            <td class="py-4 text-gray-200 font-medium">Bima Pratama</td>
+                            <td>bima@kerabat.id</td>
+                            <td>
+                                <select class="bg-transparent border border-gray-700/50 rounded px-3 py-1.5 pr-8 focus:outline-none focus:border-purple-500 text-gray-300 w-32 cursor-pointer">
+                                    <option selected>Employee</option>
+                                    <option>Manager</option>
+                                </select>
+                            </td>
+                            <td class="text-[#22c55e]">Aktif</td>
+                            <td class="text-right"><button class="hover:text-white transition font-medium">Nonaktifkan</button></td>
+                        </tr>
+                        <tr class="border-b border-gray-800/50 hover:bg-gray-800/20 transition">
+                            <td class="py-4 text-gray-200 font-medium">Dewi Lestari</td>
+                            <td>dewi@kerabat.id</td>
+                            <td>
+                                <select class="bg-transparent border border-gray-700/50 rounded px-3 py-1.5 pr-8 focus:outline-none focus:border-purple-500 text-gray-300 w-32 cursor-pointer">
+                                    <option selected>Employee</option>
+                                    <option>Manager</option>
+                                </select>
+                            </td>
+                            <td class="text-[#22c55e]">Aktif</td>
+                            <td class="text-right"><button class="hover:text-white transition font-medium">Nonaktifkan</button></td>
+                        </tr>
+                        <tr class="border-b border-gray-800/50 hover:bg-gray-800/20 transition">
+                            <td class="py-4 text-gray-200 font-medium">Kevin Santoso</td>
+                            <td>kevin@kerabat.id</td>
+                            <td>
+                                <select class="bg-transparent border border-gray-700/50 rounded px-3 py-1.5 pr-8 focus:outline-none focus:border-purple-500 text-gray-300 w-32 cursor-pointer">
+                                    <option selected>Employee</option>
+                                    <option>Manager</option>
+                                </select>
+                            </td>
+                            <td class="text-[#22c55e]">Aktif</td>
+                            <td class="text-right"><button class="hover:text-white transition font-medium">Nonaktifkan</button></td>
+                        </tr>
+                        <tr class="border-b border-gray-800/50 hover:bg-gray-800/20 transition">
+                            <td class="py-4 text-gray-200 font-medium">Sari Utami</td>
+                            <td>sari@kerabat.id</td>
+                            <td>
+                                <select class="bg-transparent border border-gray-700/50 rounded px-3 py-1.5 pr-8 focus:outline-none focus:border-purple-500 text-gray-300 w-32 cursor-pointer">
+                                    <option>Employee</option>
+                                    <option selected>Manager</option>
+                                </select>
+                            </td>
+                            <td class="text-[#22c55e]">Aktif</td>
+                            <td class="text-right"><button class="hover:text-white transition font-medium">Nonaktifkan</button></td>
+                        </tr>
+                        <tr class="border-b border-gray-800/50 hover:bg-gray-800/20 transition">
+                            <td class="py-4 text-gray-200 font-medium">Agus Salim</td>
+                            <td>agus@kerabat.id</td>
+                            <td>
+                                <select class="bg-transparent border border-gray-700/50 rounded px-3 py-1.5 pr-8 focus:outline-none focus:border-purple-500 text-gray-300 w-32 cursor-pointer">
+                                    <option selected>Employee</option>
+                                </select>
+                            </td>
+                            <td class="text-[#22c55e]">Aktif</td>
+                            <td class="text-right"><button class="hover:text-white transition font-medium">Nonaktifkan</button></td>
+                        </tr>
+                        <tr class="border-b border-gray-800/50 hover:bg-gray-800/20 transition">
+                            <td class="py-4 text-gray-200 font-medium">Maya Putri</td>
+                            <td>maya@kerabat.id</td>
+                            <td>
+                                <select class="bg-transparent border border-gray-700/50 rounded px-3 py-1.5 pr-8 focus:outline-none focus:border-purple-500 text-gray-300 w-32 cursor-pointer">
+                                    <option selected>Employee</option>
+                                </select>
+                            </td>
+                            <td class="text-[#ef4444]">Nonaktif</td>
+                            <td class="text-right"><button class="hover:text-white transition font-medium text-gray-200">Aktifkan</button></td>
+                        </tr>
+                        <tr class="border-b border-gray-800/50 hover:bg-gray-800/20 transition">
+                            <td class="py-4 text-gray-200 font-medium">Rina Kusuma</td>
+                            <td>rina@kerabat.id</td>
+                            <td>
+                                <select class="bg-transparent border border-gray-700/50 rounded px-3 py-1.5 pr-8 focus:outline-none focus:border-purple-500 text-gray-300 w-32 cursor-pointer">
+                                    <option selected>HR</option>
+                                </select>
+                            </td>
+                            <td class="text-[#22c55e]">Aktif</td>
+                            <td class="text-right"><button class="hover:text-white transition font-medium">Nonaktifkan</button></td>
+                        </tr>
+                        <tr class="hover:bg-gray-800/20 transition">
+                            <td class="py-4 text-gray-200 font-medium">Admin Kerabat</td>
+                            <td>admin@kerabat.id</td>
+                            <td>
+                                <select class="bg-transparent border border-gray-700/50 rounded px-3 py-1.5 pr-8 focus:outline-none focus:border-purple-500 text-gray-300 w-32 cursor-pointer">
+                                    <option selected>SuperAdmin</option>
+                                </select>
+                            </td>
+                            <td class="text-[#22c55e]">Aktif</td>
+                            <td class="text-right"><button class="hover:text-white transition font-medium">Nonaktifkan</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- fitur pencarian -->
+    <script>
+        function filterTable() {
+            // Ambil nilai dari input pencarian
+            let input = document.getElementById("searchInput");
+            let filter = input.value.toLowerCase();
+            let tbody = document.getElementById("userTableBody");
+            let tr = tbody.getElementsByTagName("tr");
+
+            // Looping semua baris tabel, sembunyikan yang tidak sesuai dengan pencarian
+            for (let i = 0; i < tr.length; i++) {
+                let tdName = tr[i].getElementsByTagName("td")[0]; // Kolom Pengguna
+                let tdEmail = tr[i].getElementsByTagName("td")[1]; // Kolom Email
+                
+                if (tdName || tdEmail) {
+                    let nameValue = tdName.textContent || tdName.innerText;
+                    let emailValue = tdEmail.textContent || tdEmail.innerText;
+                    
+                    if (nameValue.toLowerCase().indexOf(filter) > -1 || emailValue.toLowerCase().indexOf(filter) > -1) {
+                        tr[i].style.display = ""; // Tampilkan baris
+                    } else {
+                        tr[i].style.display = "none"; // Sembunyikan baris
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

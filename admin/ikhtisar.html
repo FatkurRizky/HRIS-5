@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kerabat Admin - Ikhtisar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0b0f17; color: #94a3b8; }
+        .card-bg { background-color: #111827; }
+        .nav-active { border-color: #a855f7; box-shadow: 0 0 10px rgba(168,85,247,0.2); color: white; }
+        .text-purple-glow { color: #d8b4fe; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans">
+    <!-- Navbar -->
+    <nav class="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+        <div class="flex items-center space-x-6">
+            <h1 class="text-xl font-semibold text-purple-glow">Kerabat Admin</h1>
+            <span class="text-[10px] border border-gray-700 px-2 py-1 rounded bg-gray-800/50 text-gray-300 font-medium">SUPER ADMIN</span>
+            <a href="ikhtisar.html" class="nav-active px-4 py-2 rounded-lg transition text-sm">Ikhtisar</a>
+            <a href="pengguna.html" class="hover:text-white px-4 py-2 transition text-sm">Pengguna dan peran</a>
+            <a href="pengaturan.html" class="hover:text-white px-4 py-2 transition text-sm">Pengaturan sistem</a>
+        </div>
+        <div class="flex items-center space-x-4">
+            <span class="text-sm text-gray-400">admin@kerabat.id</span>
+            <a href="#" class="flex items-center space-x-2 text-sm text-gray-400 hover:text-white bg-gray-800/50 hover:bg-[#ef4444] border border-gray-700 hover:border-[#ef4444] px-3 py-1.5 rounded-lg transition-all duration-200">
+                <span>Keluar</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                </svg>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Content -->
+    <main class="flex-1 p-6 space-y-6">
+        <!-- Top Cards -->
+        <div class="grid grid-cols-4 gap-6">
+            <div class="bg-gradient-to-br from-[#a87ffb] to-[#7c3aed] text-white rounded-xl p-6 shadow-lg shadow-purple-900/20">
+                <div class="text-4xl font-bold mb-2">146</div>
+                <div class="text-sm text-purple-100 mb-4">Pengguna terdaftar</div>
+                <div class="text-xs font-medium text-purple-200">+3 bulan ini</div>
+            </div>
+            <div class="card-bg border border-gray-800 rounded-xl p-6 flex flex-col justify-between">
+                <div>
+                    <div class="text-4xl font-bold text-white mb-2">118</div>
+                    <div class="text-sm mb-4">Sesi aktif</div>
+                </div>
+                <div><span class="text-xs text-[#3b82f6] bg-[#1e3a8a]/40 px-2 py-1 rounded">Puncak 09:00</span></div>
+            </div>
+            <div class="card-bg border border-gray-800 rounded-xl p-6 flex flex-col justify-between">
+                <div>
+                    <div class="text-4xl font-bold text-white mb-2">7</div>
+                    <div class="text-sm mb-4">Login gagal 24 jam</div>
+                </div>
+                <div><span class="text-xs text-[#ef4444] bg-[#7f1d1d]/40 px-2 py-1 rounded">2 dari IP asing</span></div>
+            </div>
+            <div class="card-bg border border-gray-800 rounded-xl p-6 flex flex-col justify-between">
+                <div>
+                    <div class="text-4xl font-bold text-white mb-2">99,98%</div>
+                    <div class="text-sm mb-4">Uptime 30 hari</div>
+                </div>
+                <div><span class="text-xs text-[#22c55e] bg-[#14532d]/40 px-2 py-1 rounded">Normal</span></div>
+            </div>
+        </div>
+
+        <!-- Bottom Section -->
+        <div class="grid grid-cols-2 gap-6">
+            <!-- Log aktivitas -->
+            <div class="card-bg border border-gray-800 rounded-xl p-6">
+                <h2 class="text-lg text-white font-semibold mb-6">Log aktivitas</h2>
+                <ul class="space-y-4 text-sm font-mono">
+                    <li class="flex justify-between border-b border-gray-800 pb-3">
+                        <span>09:12 rina@kerabat.id</span>
+                        <span class="text-gray-400">Menyetujui payroll tahap HR</span>
+                    </li>
+                    <li class="flex justify-between border-b border-gray-800 pb-3">
+                        <span>08:55 bima@kerabat.id</span>
+                        <span class="text-gray-400">Clock in, dalam radius</span>
+                    </li>
+                    <li class="flex justify-between border-b border-gray-800 pb-3">
+                        <span>08:41 sari@kerabat.id</span>
+                        <span class="text-gray-400">Menyetujui cuti Dewi Lestari</span>
+                    </li>
+                    <li class="flex justify-between border-b border-gray-800 pb-3">
+                        <span>08:02 sistem</span>
+                        <span class="text-gray-400">Backup harian selesai</span>
+                    </li>
+                    <li class="flex justify-between border-b border-gray-800 pb-3">
+                        <span>07:30 unknown</span>
+                        <span class="text-gray-400">Login gagal, IP 103.xx.xx.12</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Distribusi peran -->
+            <div class="card-bg border border-gray-800 rounded-xl p-6">
+                <h2 class="text-lg text-white font-semibold mb-6">Distribusi peran</h2>
+                <div class="space-y-5 text-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="w-24 text-gray-300">Employee</span>
+                        <div class="flex-1 bg-gray-800 h-2 mx-4 rounded-full overflow-hidden">
+                            <div class="bg-[#d8b4fe] h-full" style="width: 90%;"></div>
+                        </div>
+                        <span class="text-white w-6 text-right">131</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="w-24 text-gray-300">Manager</span>
+                        <div class="flex-1 bg-gray-800 h-2 mx-4 rounded-full overflow-hidden">
+                            <div class="bg-[#a855f7] h-full" style="width: 10%;"></div>
+                        </div>
+                        <span class="text-white w-6 text-right">9</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="w-24 text-gray-300">HR</span>
+                        <div class="flex-1 bg-gray-800 h-2 mx-4 rounded-full overflow-hidden">
+                            <div class="bg-[#7e22ce] h-full" style="width: 5%;"></div>
+                        </div>
+                        <span class="text-white w-6 text-right">4</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="w-24 text-gray-300">SuperAdmin</span>
+                        <div class="flex-1 bg-gray-800 h-2 mx-4 rounded-full overflow-hidden">
+                            <div class="bg-[#581c87] h-full" style="width: 2%;"></div>
+                        </div>
+                        <span class="text-white w-6 text-right">2</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
