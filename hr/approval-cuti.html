@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Approval Cuti Karyawan - HRIS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { superdark: '#103530', dark: '#144640' },
+                        accent: { DEFAULT: '#F5A83E', hover: '#E59935' },
+                        bgpage: '#F4F6F6'
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-bgpage text-gray-800 font-sans antialiased h-screen flex overflow-hidden">
+
+    <!-- Mobile Header -->
+    <div class="lg:hidden fixed top-0 w-full bg-brand-superdark text-white p-4 flex justify-between items-center z-50 shadow-md">
+        <div class="flex items-center gap-3">
+            <div class="w-2.5 h-5 bg-accent rounded-[3px]"></div>
+            <h1 class="font-bold text-sm leading-tight">HRIS</h1>
+        </div>
+        <button id="mobileMenuBtn" class="text-white text-2xl focus:outline-none">
+            <i class="ph ph-list"></i>
+        </button>
+    </div>
+
+    <div id="global-sidebar-container" class="flex shrink-0"></div>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-4 pt-20 lg:pt-8 lg:p-8 w-full">
+        <div class="mb-8">
+            <h2 class="text-3xl font-extrabold text-brand-superdark mb-2">Approval Cuti Karyawan</h2>
+            <p class="text-gray-500 text-sm">Tinjau dan proses pengajuan cuti yang sudah disetujui Manager</p>
+        </div>
+
+        <!-- Card Container -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-8">
+            
+            <!-- Filters Section (Search & Department) -->
+            <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                <!-- Search Nama -->
+                <div class="relative flex-1">
+                    <i class="ph ph-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+                    <input type="text" id="filterName" placeholder="Cari nama karyawan..." class="w-full pl-11 pr-4 py-3 bg-[#f4f4f5] border-transparent rounded-xl text-sm placeholder-gray-500 text-gray-800 focus:bg-white focus:border-brand-dark focus:ring-2 focus:ring-brand-dark/20 outline-none transition-all">
+                </div>
+
+                <!-- Filter Departemen -->
+                <div class="relative">
+                    <select id="filterDept" class="w-full sm:w-auto px-4 py-3 pr-10 bg-[#f4f4f5] border-transparent rounded-xl text-sm text-gray-700 outline-none focus:bg-white focus:border-brand-dark focus:ring-2 focus:ring-brand-dark/20 transition-all appearance-none cursor-pointer min-w-[180px]">
+                        <option value="">Semua Departemen</option>
+                        <option value="Engineering">Engineering</option>
+                        <option value="HR">HR</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Finance">Finance</option>
+                    </select>
+                    <i class="ph ph-caret-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+                </div>
+            </div>
+
+            <!-- Table Section -->
+            <div class="overflow-x-auto rounded-xl border border-gray-50">
+                <table class="w-full text-left border-collapse min-w-[700px]">
+                    <thead>
+                        <tr class="border-b border-gray-200 bg-gray-50/50">
+                            <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Karyawan</th>
+                            <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Jenis & Tanggal</th>
+                            <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Alasan</th>
+                            <th class="py-4 px-6 font-semibold text-gray-600 text-sm">Status Saat Ini</th>
+                            <th class="py-4 px-6 font-semibold text-gray-600 text-sm text-right">Aksi HR</th>
+                        </tr>
+                    </thead>
+                    <tbody id="approvalTableBody" class="divide-y divide-gray-100">
+                    </tbody>
+                </table>
+
+                <!-- Pesan Data Kosong -->
+                <div id="emptyState" class="hidden py-12 flex flex-col items-center justify-center text-center">
+                    <i class="ph ph-folder-open text-4xl text-gray-300 mb-2"></i>
+                    <p class="text-gray-500 font-medium">Tidak ada pengajuan cuti yang ditemukan.</p>
+                    <p class="text-gray-400 text-sm mt-1">Coba sesuaikan kata kunci pencarian Anda.</p>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // Data Dummy Pengajuan Cuti Karyawan
+        const approvalData = [
+            { id: 1, name: "Dewi Lestari", role: "UI Designer", dept: "Engineering", jenis: "Cuti tahunan", tanggal: "26 Okt - 28 Okt 2026", alasan: "Acara keluarga di luar kota", status: "Disetujui Manager" },
+            { id: 2, name: "Kevin Santoso", role: "QA Engineer", dept: "Engineering", jenis: "Sakit", tanggal: "23 Okt 2026", alasan: "Demam (Surat dokter terlampir)", status: "Disetujui Manager" },
+            { id: 3, name: "Maya Putri", role: "Recruiter", dept: "HR", jenis: "Cuti tahunan", tanggal: "30 Okt 2026", alasan: "Keperluan mendadak", status: "Disetujui Manager" },
+            { id: 4, name: "Joko Anwar", role: "Digital Marketer", dept: "Marketing", jenis: "Izin", tanggal: "2 Nov 2026", alasan: "Mengurus dokumen penting", status: "Disetujui Manager" }
+        ];
+
+        const filterNameInput = document.getElementById('filterName');
+        const filterDeptSelect = document.getElementById('filterDept');
+        const tableBody = document.getElementById('approvalTableBody');
+        const emptyState = document.getElementById('emptyState');
+
+        function renderTable(data) {
+            tableBody.innerHTML = '';
+
+            if (data.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+
+                data.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-gray-50/50 transition-colors";
+
+                    tr.innerHTML = `
+                        <td class="py-4 px-6">
+                            <p class="font-bold text-brand-superdark">${item.name}</p>
+                            <p class="text-xs text-gray-500">${item.role} &bull; <span class="text-gray-400">${item.dept}</span></p>
+                        </td>
+                        <td class="py-4 px-6">
+                            <p class="font-semibold text-gray-800 text-sm">${item.jenis}</p>
+                            <p class="text-xs text-gray-500">${item.tanggal}</p>
+                        </td>
+                        <td class="py-4 px-6 text-sm text-gray-600">${item.alasan}</td>
+                        <td class="py-4 px-6">
+                            <span class="bg-[#FCF1E3] text-[#C27918] text-[11px] px-3 py-1.5 rounded-full font-bold">${item.status}</span>
+                        </td>
+                        <td class="py-4 px-6 text-right">
+                            <div class="inline-flex gap-2">
+                                <button onclick="handleAction(${item.id}, 'Tolak')" class="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors">Tolak</button>
+                                <button onclick="handleAction(${item.id}, 'Setujui')" class="bg-[#144640] text-white hover:bg-[#103530] px-3 py-1.5 rounded-lg text-sm font-bold transition-colors">Setujui</button>
+                            </div>
+                        </td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+            }
+        }
+
+        // Fungsi Aksi Tombol Setujui / Tolak
+        function handleAction(id, actionType) {
+            const index = approvalData.findIndex(item => item.id === id);
+            if (index !== -1) {
+                alert(`Pengajuan cuti atas nama ${approvalData[index].name} berhasil di-${actionType.toLowerCase()}!`);
+                approvalData.splice(index, 1); // Hapus dari list setelah diproses
+                filterData(); // Refresh tabel
+            }
+        }
+
+        // Fungsi Filter Real-time
+        function filterData() {
+            const nameVal = filterNameInput.value.toLowerCase().trim();
+            const deptVal = filterDeptSelect.value;
+
+            const filtered = approvalData.filter(item => {
+                const matchName = item.name.toLowerCase().includes(nameVal);
+                const matchDept = deptVal === "" ? true : (item.dept === deptVal);
+                return matchName && matchDept;
+            });
+
+            renderTable(filtered);
+        }
+
+        // Event Listeners
+        filterNameInput.addEventListener('input', filterData);
+        filterDeptSelect.addEventListener('change', filterData);
+
+        // Inisialisasi awal
+        renderTable(approvalData);
+    </script>
+
+    <script src="sidebar.js"></script>
+</body>
+</html>

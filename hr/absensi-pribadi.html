@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Absensi Pribadi - HRIS</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            superdark: '#103530', 
+                            dark: '#144640',    
+                        },
+                        accent: {
+                            DEFAULT: '#F5A83E', 
+                            hover: '#E59935',
+                        },
+                        bgpage: '#F4F6F6',      
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Map Grid Pattern */
+        .map-grid {
+            background-size: 60px 60px;
+            background-image:
+                linear-gradient(to right, #e5e7eb 1px, transparent 1px),
+                linear-gradient(to bottom, #e5e7eb 1px, transparent 1px);
+            background-position: center center;
+        }
+
+        /* Custom Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #2563eb; /* blue-600 */
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #e5e7eb;
+            border-radius: 9999px;
+            border: 1px solid #d1d5db;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+    </style>
+</head>
+<body class="bg-bgpage text-gray-800 font-sans antialiased overflow-hidden h-screen flex">
+
+    <!-- Mobile Header -->
+    <div class="lg:hidden fixed top-0 w-full bg-brand-superdark text-white p-4 flex justify-between items-center z-50 shadow-md">
+        <div class="flex items-center gap-3">
+            <div class="w-2.5 h-5 bg-accent rounded-[3px]"></div>
+            <h1 class="font-bold text-sm leading-tight">HRIS</h1>
+        </div>
+        <button id="mobileMenuBtn" class="text-white text-2xl focus:outline-none">
+            <i class="ph ph-list"></i>
+        </button>
+    </div>
+
+    <!-- CONTAINER SIDEBAR GLOBAL (Otomatis dirender oleh sidebar.js) -->
+    <div id="global-sidebar-container" class="flex shrink-0"></div>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-4 pt-24 lg:pt-8 lg:p-8 w-full bg-bgpage">
+        
+        <!-- Header -->
+        <div class="mb-8">
+            <h2 class="text-3xl font-bold text-gray-900 tracking-tight">Absensi</h2>
+            <p class="text-gray-500 mt-1.5 text-sm">Clock in dan clock out hanya bisa dilakukan dalam radius kantor</p>
+        </div>
+
+        <!-- Grid 2 Kolom -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Card Kiri: Simulasi Absensi GPS -->
+            <div class="bg-white rounded-[1.25rem] p-6 lg:p-8 shadow-sm border border-gray-100 flex flex-col">
+                
+                <div class="flex items-end justify-between mb-6">
+                    <div>
+                        <!-- Jam Interaktif WIB -->
+                        <div class="text-[3.5rem] font-bold text-gray-900 tracking-tight leading-none tabular-nums mb-2" id="clock">
+                            --:--:--
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <p class="text-gray-500 font-medium">Jarak dari kantor: <span id="distanceText" class="font-bold text-gray-900">40 m</span></p>
+                            <span id="radiusBadge" class="bg-[#E5F5ED] text-[#1D8853] text-[11px] px-2.5 py-1 rounded-full font-bold transition-colors">
+                                Dalam radius
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Peta Simulasi -->
+                <div class="relative w-full h-64 bg-[#f8f9fa] border-2 border-gray-100 rounded-2xl overflow-hidden mb-6 map-grid flex items-center justify-center">
+                    
+                    <!-- Lingkaran Radius -->
+                    <div class="absolute w-44 h-44 bg-[#1D8853]/15 rounded-full flex items-center justify-center">
+                    </div>
+                    
+                    <!-- Titik Kantor -->
+                    <div class="absolute w-8 h-8 bg-brand-dark rounded-md shadow-sm z-10 flex flex-col items-center justify-center">
+                        <div class="absolute top-10 text-[10px] font-bold text-gray-500 whitespace-nowrap bg-white/80 px-2 py-0.5 rounded">Kantor Pusat</div>
+                    </div>
+
+                    <!-- Titik User (Simulasi) -->
+                    <div id="userPin" class="absolute w-5 h-5 bg-accent border-4 border-white rounded-full shadow-md z-20 transition-all duration-200" style="transform: translateX(48px);"></div>
+                </div>
+
+                <!-- Slider Kontrol -->
+                <div class="mb-8">
+                    <p class="font-bold text-sm text-gray-900 mb-3">Geser untuk mensimulasikan posisi Anda</p>
+                    <input type="range" id="distanceSlider" min="0" max="150" value="40" class="w-full">
+                </div>
+
+                <!-- Tombol Aksi -->
+                <div class="grid grid-cols-2 gap-4 mt-auto">
+                    <button id="clockInBtn" class="bg-brand-dark hover:bg-brand-superdark text-white font-bold py-3.5 rounded-xl shadow-sm transition-colors w-full">
+                        Clock in
+                    </button>
+                    <button id="clockOutBtn" class="bg-white border-2 border-gray-200 text-gray-400 font-bold py-3.5 rounded-xl w-full cursor-not-allowed" disabled>
+                        Clock out
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- Card Kanan: Riwayat & Ringkasan -->
+            <div class="bg-white rounded-[1.25rem] p-6 lg:p-8 shadow-sm border border-gray-100 flex flex-col">
+                <h3 class="text-xl font-bold text-gray-900 mb-6">Riwayat absensi</h3>
+                
+                <!-- List Riwayat -->
+                <div class="flex-1">
+                    <ul class="divide-y divide-gray-100">
+                        <!-- Kamis -->
+                        <li class="py-4 flex justify-between items-center border-t border-gray-100">
+                            <div>
+                                <p class="font-bold text-gray-900">Kamis, 15 Okt</p>
+                                <p class="text-sm text-gray-500 mt-1">Masuk 08:02 &middot; Pulang 17:10</p>
+                            </div>
+                            <span class="bg-[#E5F5ED] text-[#1D8853] text-[11px] px-3 py-1.5 rounded-full font-bold">
+                                Tepat waktu
+                            </span>
+                        </li>
+                        <!-- Rabu -->
+                        <li class="py-4 flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-gray-900">Rabu, 14 Okt</p>
+                                <p class="text-sm text-gray-500 mt-1">Masuk 08:21 &middot; Pulang 17:05</p>
+                            </div>
+                            <span class="bg-[#FCF1E3] text-[#C27918] text-[11px] px-3 py-1.5 rounded-full font-bold">
+                                Terlambat
+                            </span>
+                        </li>
+                        <!-- Selasa -->
+                        <li class="py-4 flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-gray-900">Selasa, 13 Okt</p>
+                                <p class="text-sm text-gray-500 mt-1">Masuk 07:55 &middot; Pulang 17:30</p>
+                            </div>
+                            <span class="bg-[#E5F5ED] text-[#1D8853] text-[11px] px-3 py-1.5 rounded-full font-bold">
+                                Tepat waktu
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Ringkasan Bawah -->
+                <div class="grid grid-cols-2 gap-4 mt-8 pt-6 border-t border-gray-100">
+                    <div>
+                        <p class="text-3xl font-extrabold text-gray-900 mb-1">168 jam</p>
+                        <p class="text-sm font-medium text-gray-500">Total jam kerja bulan ini</p>
+                    </div>
+                    <div>
+                        <p class="text-3xl font-extrabold text-gray-900 mb-1">2 kali</p>
+                        <p class="text-sm font-medium text-gray-500">Terlambat bulan ini</p>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // Memastikan toggle sidebar hanya didefinisikan jika elemennya ada (ditangani sebagian besar oleh sidebar.js)
+        const btn = document.getElementById('mobileMenuBtn');
+        const overlay = document.getElementById('sidebarOverlay');
+        
+        if (btn && overlay) {
+            btn.addEventListener('click', function() {
+                const sidebar = document.getElementById('sidebar');
+                if(sidebar) {
+                    sidebar.classList.toggle('-translate-x-full');
+                    overlay.classList.toggle('hidden');
+                }
+            });
+            overlay.addEventListener('click', function() {
+                const sidebar = document.getElementById('sidebar');
+                if(sidebar) {
+                    sidebar.classList.add('-translate-x-full');
+                    overlay.classList.add('hidden');
+                }
+            });
+        }
+
+        // Live Clock (WIB - Asia/Jakarta)
+        function updateClock() {
+            const now = new Date();
+            
+            // Format waktu Indonesia Barat menggunakan fungsi lokal
+            const timeFormatter = new Intl.DateTimeFormat('id-ID', {
+                timeZone: 'Asia/Jakarta',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+            document.getElementById('clock').textContent = timeFormatter.format(now).replace(/\./g, ':');
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Simulasi GPS dengan Slider
+        const slider = document.getElementById('distanceSlider');
+        const distanceText = document.getElementById('distanceText');
+        const badge = document.getElementById('radiusBadge');
+        const userPin = document.getElementById('userPin');
+        const clockInBtn = document.getElementById('clockInBtn');
+        
+        const RADIUS_MAKSIMAL = 50; // Jarak maksimal dalam meter
+
+        slider.addEventListener('input', function() {
+            const distance = parseInt(this.value);
+            
+            // 1. Update Teks Jarak
+            distanceText.textContent = `${distance} m`;
+
+            // 2. Gerakkan Pin (Visual mapping: 1 meter = 1.2px pergeseran)
+            const pixelShift = distance * 1.2; 
+            userPin.style.transform = `translateX(${pixelShift}px)`;
+
+            // 3. Update Status Radius & Tombol
+            if(distance <= RADIUS_MAKSIMAL) {
+                // Dalam radius
+                badge.textContent = "Dalam radius";
+                badge.className = "bg-[#E5F5ED] text-[#1D8853] text-[11px] px-2.5 py-1 rounded-full font-bold transition-colors";
+                
+                clockInBtn.disabled = false;
+                clockInBtn.className = "bg-brand-dark hover:bg-brand-superdark text-white font-bold py-3.5 rounded-xl shadow-sm transition-colors w-full";
+            } else {
+                // Luar radius
+                badge.textContent = "Di luar radius";
+                badge.className = "bg-[#FCEAEA] text-[#D83A3A] text-[11px] px-2.5 py-1 rounded-full font-bold transition-colors";
+                
+                clockInBtn.disabled = true;
+                clockInBtn.className = "bg-gray-200 text-gray-400 font-bold py-3.5 rounded-xl w-full cursor-not-allowed transition-colors";
+            }
+        });
+
+    </script>
+    
+
+    <script src="sidebar.js"></script>
+</body>
+</html>

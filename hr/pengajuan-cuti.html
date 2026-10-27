@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pengajuan Cuti - HRIS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { superdark: '#103530', dark: '#144640' },
+                        accent: { DEFAULT: '#F5A83E', hover: '#E59935' },
+                        bgpage: '#F4F6F6'
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-bgpage text-gray-800 font-sans antialiased h-screen flex overflow-hidden">
+
+    <!-- Mobile Header -->
+    <div class="lg:hidden fixed top-0 w-full bg-brand-superdark text-white p-4 flex justify-between items-center z-50 shadow-md">
+        <div class="flex items-center gap-3">
+            <div class="w-2.5 h-5 bg-accent rounded-[3px]"></div>
+            <h1 class="font-bold text-sm leading-tight">HRIS</h1>
+        </div>
+        <button id="mobileMenuBtn" class="text-white text-2xl focus:outline-none">
+            <i class="ph ph-list"></i>
+        </button>
+    </div>
+
+    <div id="global-sidebar-container" class="flex shrink-0"></div>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-4 pt-20 lg:pt-8 lg:p-8 w-full">
+        <div class="mb-8">
+            <h2 class="text-3xl font-extrabold text-brand-superdark mb-2">Cuti dan izin</h2>
+            <p class="text-gray-500 text-sm">Persetujuan berjenjang: Manager, lalu HR</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <!-- Form Ajukan Cuti -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <h3 class="font-bold text-lg text-brand-superdark mb-6">Ajukan cuti</h3>
+                <form class="space-y-4" onsubmit="event.preventDefault(); alert('Pengajuan berhasil dikirim!');">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Jenis</label>
+                        <select class="w-full bg-[#F4F6F6] border-none rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-brand-dark outline-none cursor-pointer text-gray-700 font-medium">
+                            <option>Cuti tahunan</option>
+                            <option>Izin</option>
+                            <option>Sakit</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Tanggal</label>
+                        <div class="flex flex-col sm:flex-row items-center gap-3">
+                            <input type="date" class="w-full bg-[#F4F6F6] border-none rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-brand-dark outline-none text-gray-700 font-medium">
+                            <span class="text-sm font-bold text-gray-500 my-1 sm:my-0">sampai</span>
+                            <input type="date" class="w-full bg-[#F4F6F6] border-none rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-brand-dark outline-none text-gray-700 font-medium">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Alasan</label>
+                        <textarea rows="3" placeholder="Tulis alasan singkat" class="w-full bg-[#F4F6F6] border-none rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-brand-dark outline-none text-gray-700 resize-none font-medium"></textarea>
+                    </div>
+                    <button type="submit" class="bg-brand-dark hover:bg-brand-superdark text-white font-bold px-6 py-3 rounded-lg transition-colors mt-2 text-sm">
+                        Kirim pengajuan
+                    </button>
+                </form>
+            </div>
+
+            <!-- Pengajuan Saya -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <h3 class="font-bold text-lg text-brand-superdark mb-6">Pengajuan saya</h3>
+                
+                <div class="space-y-6">
+                    <!-- Item 1 -->
+                    <div class="border-b border-gray-100 pb-6">
+                        <div class="flex justify-between items-start mb-6">
+                            <div>
+                                <p class="font-bold text-brand-superdark">Cuti tahunan</p>
+                                <p class="text-sm text-gray-500">22 sampai 24 Okt</p>
+                            </div>
+                            <span class="bg-[#E5F5ED] text-[#1D8853] text-[11px] px-3 py-1.5 rounded-full font-bold">Disetujui</span>
+                        </div>
+                        
+                        <!-- Stepper -->
+                        <div class="relative px-2 mt-4">
+                            <div class="absolute top-[9px] left-8 right-8 h-[2px] bg-[#1D8853] z-0"></div>
+                            
+                            <div class="relative z-10 flex justify-between items-center text-center">
+                                <div class="flex flex-col items-center gap-2">
+                                    <div class="w-5 h-5 bg-[#1D8853] rounded-full border-4 border-white box-content"></div>
+                                    <span class="text-[11px] font-bold text-brand-superdark">Diajukan</span>
+                                </div>
+                                <div class="flex flex-col items-center gap-2">
+                                    <div class="w-5 h-5 bg-[#1D8853] rounded-full border-4 border-white box-content"></div>
+                                    <span class="text-[11px] font-bold text-brand-superdark">Manager</span>
+                                </div>
+                                <div class="flex flex-col items-center gap-2">
+                                    <div class="w-5 h-5 bg-[#1D8853] rounded-full border-4 border-white box-content"></div>
+                                    <span class="text-[11px] font-bold text-brand-superdark">HR</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Item 2 -->
+                    <div>
+                        <div class="flex justify-between items-start mb-6">
+                            <div>
+                                <p class="font-bold text-brand-superdark">Izin</p>
+                                <p class="text-sm text-gray-500">9 Okt</p>
+                            </div>
+                            <span class="bg-[#E5F5ED] text-[#1D8853] text-[11px] px-3 py-1.5 rounded-full font-bold">Disetujui</span>
+                        </div>
+                        
+                        <!-- Stepper -->
+                        <div class="relative px-2 mt-4">
+                            <div class="absolute top-[9px] left-8 right-8 h-[2px] bg-[#1D8853] z-0"></div>
+                            
+                            <div class="relative z-10 flex justify-between items-center text-center">
+                                <div class="flex flex-col items-center gap-2">
+                                    <div class="w-5 h-5 bg-[#1D8853] rounded-full border-4 border-white box-content"></div>
+                                    <span class="text-[11px] font-bold text-brand-superdark">Diajukan</span>
+                                </div>
+                                <div class="flex flex-col items-center gap-2">
+                                    <div class="w-5 h-5 bg-[#1D8853] rounded-full border-4 border-white box-content"></div>
+                                    <span class="text-[11px] font-bold text-brand-superdark">Manager</span>
+                                </div>
+                                <div class="flex flex-col items-center gap-2">
+                                    <div class="w-5 h-5 bg-[#1D8853] rounded-full border-4 border-white box-content"></div>
+                                    <span class="text-[11px] font-bold text-brand-superdark">HR</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="sidebar.js"></script>
+</body>
+</html>

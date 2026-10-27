@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rekap Absensi - HRIS</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            superdark: '#103530', 
+                            dark: '#144640',    
+                        },
+                        accent: {
+                            DEFAULT: '#F5A83E', 
+                            hover: '#E59935',
+                        },
+                        bgpage: '#F4F6F6',      
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-bgpage text-gray-800 font-sans antialiased overflow-hidden h-screen flex">
+
+    <!-- Mobile Header -->
+    <div class="lg:hidden fixed top-0 w-full bg-brand-superdark text-white p-4 flex justify-between items-center z-50 shadow-md">
+        <div class="flex items-center gap-3">
+            <div class="w-2.5 h-5 bg-accent rounded-[3px]"></div>
+            <h1 class="font-bold text-sm leading-tight">HRIS</h1>
+        </div>
+        <button id="mobileMenuBtn" class="text-white text-2xl focus:outline-none">
+            <i class="ph ph-list"></i>
+        </button>
+    </div>
+
+    <!-- Sidebar -->
+    <div id="global-sidebar-container" class="flex shrink-0"></div>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-4 pt-20 lg:pt-8 lg:p-8 w-full">
+        
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+            <div>
+                <h2 class="text-3xl font-bold text-gray-900 tracking-tight">Rekap Absensi Karyawan</h2>
+                <p class="text-gray-500 mt-1.5 text-sm">Pemantauan data kehadiran, keterlambatan, dan jam kerja seluruh divisi</p>
+            </div>
+            <button class="bg-brand-dark hover:bg-brand-superdark text-white px-5 py-2.5 rounded-xl font-semibold transition-all shadow-sm text-sm flex items-center justify-center gap-2 w-full md:w-auto">
+                <i class="ph ph-download-simple text-lg"></i> Ekspor CSV
+            </button>
+        </div>
+
+        <!-- Filter & Table Card -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-8">
+            
+            <!-- Filters Section -->
+            <div class="flex flex-col lg:flex-row gap-4 mb-6">
+                <!-- 1. Search Karyawan -->
+                <div class="relative flex-1">
+                    <i class="ph ph-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+                    <input type="text" id="filterName" class="w-full pl-11 pr-4 py-3 bg-[#f4f4f5] border-transparent rounded-xl text-sm placeholder-gray-500 text-gray-800 focus:bg-white focus:border-brand-dark focus:ring-2 focus:ring-brand-dark/20 outline-none transition-all" placeholder="Cari nama karyawan...">
+                </div>
+                
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <!-- 2. Filter Tanggal -->
+                    <div class="relative">
+                        <input type="date" id="filterDate" class="w-full sm:w-auto px-4 py-3 bg-[#f4f4f5] border-transparent rounded-xl text-sm text-gray-700 outline-none focus:bg-white focus:border-brand-dark focus:ring-2 focus:ring-brand-dark/20 transition-all cursor-pointer">
+                    </div>
+                    
+                    <!-- 3. Filter Departemen -->
+                    <div class="relative">
+                        <select id="filterDept" class="w-full sm:w-auto px-4 py-3 pr-10 bg-[#f4f4f5] border-transparent rounded-xl text-sm text-gray-700 outline-none focus:bg-white focus:border-brand-dark focus:ring-2 focus:ring-brand-dark/20 transition-all appearance-none cursor-pointer min-w-[170px]">
+                            <option value="">Semua Departemen</option>
+                            <option value="Engineering">Engineering</option>
+                            <option value="HR">HR</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Finance">Finance</option>
+                        </select>
+                        <i class="ph ph-caret-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Section -->
+            <div class="overflow-x-auto rounded-xl border border-gray-50">
+                <table class="w-full text-left border-collapse min-w-[800px]">
+                    <thead class="bg-gray-50/50">
+                        <tr class="border-b-2 border-gray-100">
+                            <th class="pb-3 pt-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Nama Karyawan</th>
+                            <th class="pb-3 pt-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Departemen</th>
+                            <th class="pb-3 pt-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Tanggal</th>
+                            <th class="pb-3 pt-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Masuk</th>
+                            <th class="pb-3 pt-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Pulang</th>
+                            <th class="pb-3 pt-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendanceTableBody" class="divide-y divide-gray-100">
+                        <!-- Data akan dirender di sini via JS -->
+                    </tbody>
+                </table>
+                <!-- Pesan Data Kosong -->
+                <div id="emptyState" class="hidden py-12 flex flex-col items-center justify-center text-center">
+                    <i class="ph ph-folder-open text-4xl text-gray-300 mb-2"></i>
+                    <p class="text-gray-500 font-medium">Data absensi tidak ditemukan.</p>
+                    <p class="text-gray-400 text-sm mt-1">Coba sesuaikan filter pencarian Anda.</p>
+                </div>
+            </div>
+            
+        </div>
+    </main>
+
+    <script>
+        // --- DATA MOCK (DUMMY DATA) ---
+        const attendanceData = [
+            { nama: "Bima Pratama", dept: "Engineering", tanggal: "2026-10-23", masuk: "07:55", pulang: "17:15", status: "Tepat Waktu" },
+            { nama: "Kevin Santoso", dept: "Engineering", tanggal: "2026-10-23", masuk: "-", pulang: "-", status: "Sakit" },
+            { nama: "Maya Putri", dept: "HR", tanggal: "2026-10-23", masuk: "08:21", pulang: "-", status: "Terlambat" },
+            { nama: "Dewi Lestari", dept: "Engineering", tanggal: "2026-10-23", masuk: "-", pulang: "-", status: "Cuti" },
+            { nama: "Agus Salim", dept: "HR", tanggal: "2026-10-23", masuk: "07:50", pulang: "17:00", status: "Tepat Waktu" },
+            
+            // Data tanggal sebelumnya
+            { nama: "Bima Pratama", dept: "Engineering", tanggal: "2026-10-22", masuk: "08:05", pulang: "17:10", status: "Terlambat" },
+            { nama: "Maya Putri", dept: "HR", tanggal: "2026-10-22", masuk: "07:58", pulang: "17:05", status: "Tepat Waktu" },
+            { nama: "Joko Anwar", dept: "Marketing", tanggal: "2026-10-22", masuk: "08:00", pulang: "17:00", status: "Tepat Waktu" },
+            { nama: "Siska Saraswati", dept: "Finance", tanggal: "2026-10-23", masuk: "08:30", pulang: "-", status: "Terlambat" }
+        ];
+
+        // --- DOM ELEMENTS UNTUK FILTER ---
+        const filterNameInput = document.getElementById('filterName');
+        const filterDateInput = document.getElementById('filterDate');
+        const filterDeptSelect = document.getElementById('filterDept');
+        const tableBody = document.getElementById('attendanceTableBody');
+        const emptyState = document.getElementById('emptyState');
+
+        // Set default filter tanggal ke hari "ini" (berdasarkan simulasi)
+        filterDateInput.value = "2026-10-23";
+
+        // --- FUNGSI RENDER BADGE WARNA ---
+        function getStatusBadge(status) {
+            switch(status) {
+                case "Tepat Waktu":
+                    return `<span class="inline-flex justify-center w-24 bg-[#E5F5ED] text-[#1D8853] text-[11px] px-3 py-1 rounded-full font-bold">Tepat Waktu</span>`;
+                case "Terlambat":
+                    return `<span class="inline-flex justify-center w-24 bg-[#FCF1E3] text-[#C27918] text-[11px] px-3 py-1 rounded-full font-bold">Terlambat</span>`;
+                case "Sakit":
+                    return `<span class="inline-flex justify-center w-24 bg-[#EBF3FC] text-[#2F6BBA] text-[11px] px-3 py-1 rounded-full font-bold">Sakit</span>`;
+                case "Cuti":
+                    return `<span class="inline-flex justify-center w-24 bg-[#EBF3FC] text-[#2F6BBA] text-[11px] px-3 py-1 rounded-full font-bold">Cuti</span>`;
+                default:
+                    return `<span class="inline-flex justify-center w-24 bg-gray-100 text-gray-600 text-[11px] px-3 py-1 rounded-full font-bold">${status}</span>`;
+            }
+        }
+
+        // --- FUNGSI FORMAT TANGGAL KE INDONESIA ---
+        function formatDateIndo(dateString) {
+            const options = { day: 'numeric', month: 'short', year: 'numeric' };
+            const dateObj = new Date(dateString);
+            return dateObj.toLocaleDateString('id-ID', options); 
+        }
+
+        // --- FUNGSI UTAMA RENDER TABEL ---
+        function renderTable(data) {
+            tableBody.innerHTML = ""; 
+            
+            if(data.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                
+                data.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-gray-50/70 transition-colors group";
+                    
+                    tr.innerHTML = `
+                        <td class="py-4 px-4 font-semibold text-gray-800">${item.nama}</td>
+                        <td class="py-4 px-4 text-sm text-gray-600">${item.dept}</td>
+                        <td class="py-4 px-4 text-sm text-gray-600">${formatDateIndo(item.tanggal)}</td>
+                        <td class="py-4 px-4 text-sm font-medium ${item.masuk === '-' ? 'text-gray-400' : (item.status === 'Terlambat' ? 'text-red-600' : 'text-gray-800')} text-center">${item.masuk}</td>
+                        <td class="py-4 px-4 text-sm font-medium ${item.pulang === '-' ? 'text-gray-400' : 'text-gray-800'} text-center">${item.pulang}</td>
+                        <td class="py-4 px-4 text-center">${getStatusBadge(item.status)}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+            }
+        }
+
+        // --- FUNGSI FILTER DATA ---
+        function filterData() {
+            const nameValue = filterNameInput.value.toLowerCase().trim();
+            const dateValue = filterDateInput.value;
+            const deptValue = filterDeptSelect.value;
+
+            const filteredData = attendanceData.filter(item => {
+                const matchName = item.nama.toLowerCase().includes(nameValue);
+                const matchDate = dateValue === "" ? true : (item.tanggal === dateValue);
+                const matchDept = deptValue === "" ? true : (item.dept === deptValue);
+                return matchName && matchDate && matchDept;
+            });
+
+            renderTable(filteredData);
+        }
+
+        // --- EVENT LISTENERS UNTUK REAL-TIME FILTER ---
+        filterNameInput.addEventListener('input', filterData); 
+        filterDateInput.addEventListener('change', filterData); 
+        filterDeptSelect.addEventListener('change', filterData);
+
+        // --- INISIALISASI PERTAMA KALI SAAT HALAMAN DIBUKA ---
+        filterData(); 
+        
+    </script>
+    <script src="sidebar.js"></script>
+
+</body>
+</html>

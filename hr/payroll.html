@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payroll - HRIS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { superdark: '#103530', dark: '#144640' },
+                        accent: { DEFAULT: '#F5A83E', hover: '#E59935' },
+                        bgpage: '#F4F6F6'
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <style>
+        .row-karyawan {
+            border-left: 4px solid transparent !important;
+            transition: all 0.2s ease-in-out;
+        }
+        .row-karyawan:hover {
+            background-color: #F9FAFB !important;
+        }
+        .row-karyawan.baris-aktif {
+            border-left-color: #144640 !important;
+            background-color: #F9FAFB !important;
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-bgpage text-gray-800 font-sans antialiased h-screen flex overflow-hidden">
+
+    <!-- Mobile Header -->
+    <div class="lg:hidden fixed top-0 w-full bg-brand-superdark text-white p-4 flex justify-between items-center z-50 shadow-md">
+        <div class="flex items-center gap-3">
+            <div class="w-2.5 h-5 bg-accent rounded-[3px]"></div>
+            <h1 class="font-bold text-sm leading-tight">HRIS</h1>
+        </div>
+        <button id="mobileMenuBtn" class="text-white text-2xl focus:outline-none">
+            <i class="ph ph-list"></i>
+        </button>
+    </div>
+
+    <div id="global-sidebar-container" class="flex shrink-0"></div>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-4 pt-20 lg:pt-8 lg:p-8 w-full flex flex-col gap-6 overflow-y-auto">
+        
+        <!-- Header & Action -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h2 class="text-3xl font-extrabold text-brand-superdark mb-2">Payroll</h2>
+                <p class="text-gray-500 text-sm">Kalkulasi otomatis dari absensi, lembur, dan potongan</p>
+            </div>
+            
+            <div class="flex items-center gap-3 w-full md:w-auto">
+                <div class="relative w-full md:w-auto">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="ph ph-calendar text-gray-500"></i>
+                    </div>
+                    <select class="block w-full md:w-48 pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-dark cursor-pointer appearance-none shadow-sm">
+                        <option value="10-2026" selected>Oktober 2026</option>
+                        <option value="09-2026">September 2026</option>
+                        <option value="08-2026">Agustus 2026</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                        <i class="ph ph-caret-down text-gray-500 text-sm"></i>
+                    </div>
+                </div>
+
+                <button class="bg-brand-dark hover:bg-brand-superdark text-white font-bold px-6 py-2.5 rounded-lg transition-colors text-sm shadow-sm whitespace-nowrap">
+                    Setujui payroll
+                </button>
+            </div>
+        </div>
+
+        <!-- Stepper -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div class="relative px-4 md:px-12 mt-2">
+                <div class="absolute top-[9px] left-8 md:left-24 right-8 md:right-24 h-[2px] bg-gray-200 z-0"></div>
+                <div class="absolute top-[9px] left-8 md:left-24 w-1/2 h-[2px] bg-[#1D8853] z-0"></div>
+                
+                <div class="relative z-10 flex justify-between items-center text-center">
+                    <div class="flex flex-col items-center gap-2">
+                        <div class="w-5 h-5 bg-[#1D8853] rounded-full border-4 border-white box-content"></div>
+                        <span class="text-[11px] font-bold text-brand-superdark">Draft dihitung</span>
+                    </div>
+                    <div class="flex flex-col items-center gap-2">
+                        <div class="w-5 h-5 bg-[#1D8853] rounded-full border-4 border-white box-content"></div>
+                        <span class="text-[11px] font-bold text-brand-superdark">Ditinjau HR</span>
+                    </div>
+                    <div class="flex flex-col items-center gap-2">
+                        <div class="w-5 h-5 bg-gray-300 rounded-full border-4 border-white box-content"></div>
+                        <span class="text-[11px] font-semibold text-gray-400">Disetujui direktur</span>
+                    </div>
+                    <div class="flex flex-col items-center gap-2">
+                        <div class="w-5 h-5 bg-gray-300 rounded-full border-4 border-white box-content"></div>
+                        <span class="text-[11px] font-semibold text-gray-400">Dicairkan</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-col xl:flex-row gap-6">
+            <!-- Left: Table List -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden">
+                <div class="p-4 border-b border-gray-100 bg-gray-50">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="ph ph-magnifying-glass text-gray-400 text-lg"></i>
+                        </div>
+                        <input type="text" id="searchInput" placeholder="Cari nama karyawan..." class="block w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-dark transition-shadow">
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse min-w-[500px]">
+                        <thead class="bg-gray-50 sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                            <tr>
+                                <th class="py-4 px-6 font-semibold text-gray-500 text-xs uppercase tracking-wider">Karyawan</th>
+                                <th class="py-4 px-6 font-semibold text-gray-500 text-xs uppercase tracking-wider text-right">Pendapatan</th>
+                                <th class="py-4 px-6 font-semibold text-gray-500 text-xs uppercase tracking-wider text-right">Potongan</th>
+                                <th class="py-4 px-6 font-semibold text-gray-500 text-xs uppercase tracking-wider text-right">Diterima</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payrollTable" class="divide-y divide-gray-100 text-sm">
+                            <!-- Data akan dimuat otomatis oleh JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Right: Slip Gaji -->
+            <div class="w-full xl:w-[400px] bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col shrink-0">
+                <h3 class="font-bold text-lg text-brand-superdark mb-6">Slip gaji</h3>
+                
+                <div id="slipDetailContent" class="flex-1 flex flex-col">
+                    <div class="py-12 flex items-center justify-center text-gray-400 text-sm text-center">
+                        Pilih karyawan dari tabel<br>untuk melihat detail slip gaji
+                    </div>
+                </div>
+                
+                <button id="btnDownload" class="w-full mt-6 bg-white border border-gray-300 text-brand-superdark hover:bg-gray-50 font-bold px-4 py-2.5 rounded-lg transition-colors text-sm shadow-sm hidden">
+                    Unduh PDF
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const payrollData = [
+            { id: 1, name: 'Bima Pratama', role: 'Backend Developer', initials: 'BP', color: 'bg-[#144640]', gajiPokok: 12000000, tunjanganTetap: 2500000, lemburVal: 312139, lemburText: '3 jam', bpjs: 480000, terlambatVal: 50000, terlambatText: '1x', alpaVal: 0, alpaText: '0 hari', pph21: 466607 },
+            { id: 2, name: 'Dewi Lestari', role: 'UI Designer', initials: 'DL', color: 'bg-[#295D8B]', gajiPokok: 9000000, tunjanganTetap: 2000000, lemburVal: 0, lemburText: '0 jam', bpjs: 400000, terlambatVal: 0, terlambatText: '0x', alpaVal: 0, alpaText: '0 hari', pph21: 261000 },
+            { id: 3, name: 'Kevin Santoso', role: 'QA Engineer', initials: 'KS', color: 'bg-[#C27918]', gajiPokok: 7000000, tunjanganTetap: 1303468, lemburVal: 0, lemburText: '0 jam', bpjs: 350000, terlambatVal: 100000, terlambatText: '2x', alpaVal: 0, alpaText: '0 hari', pph21: 399355 },
+            { id: 4, name: 'Agus Salim', role: 'Payroll Specialist', initials: 'AS', color: 'bg-[#6B2C91]', gajiPokok: 10000000, tunjanganTetap: 2173410, lemburVal: 0, lemburText: '0 jam', bpjs: 450000, terlambatVal: 0, terlambatText: '0x', alpaVal: 0, alpaText: '0 hari', pph21: 288671 },
+            { id: 5, name: 'Maya Putri', role: 'Recruiter', initials: 'MP', color: 'bg-[#D83A3A]', gajiPokok: 8000000, tunjanganTetap: 1700000, lemburVal: 0, lemburText: '0 jam', bpjs: 380000, terlambatVal: 0, terlambatText: '0x', alpaVal: 0, alpaText: '0 hari', pph21: 328000 }
+        ];
+
+        const formatRp = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
+
+        const tableBody = document.getElementById('payrollTable');
+        const searchInput = document.getElementById('searchInput');
+        const slipContainer = document.getElementById('slipDetailContent');
+        const btnDownload = document.getElementById('btnDownload');
+
+        let activeId = 1;
+
+        function renderTable(data) {
+            tableBody.innerHTML = '';
+            
+            if(data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="4" class="py-8 text-center text-gray-500">Tidak ada data karyawan ditemukan.</td></tr>`;
+                return;
+            }
+
+            data.forEach(emp => {
+                const pendapatan = emp.gajiPokok + emp.tunjanganTetap + emp.lemburVal;
+                const potongan = emp.bpjs + emp.terlambatVal + emp.alpaVal + emp.pph21;
+                const diterima = pendapatan - potongan;
+                
+                emp.totalPendapatan = pendapatan;
+                emp.totalPotongan = potongan;
+                emp.totalDiterima = diterima;
+
+                const tr = document.createElement('tr');
+                tr.id = `row-${emp.id}`;
+                tr.className = `row-karyawan cursor-pointer`;
+                
+                if (emp.id === activeId) {
+                    tr.classList.add('baris-aktif');
+                }
+
+                tr.onclick = () => viewSlip(emp);
+
+                tr.innerHTML = `
+                    <td class="py-4 px-6">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full text-white flex items-center justify-center text-xs font-bold ${emp.color}">
+                                ${emp.initials}
+                            </div>
+                            <span class="font-semibold text-gray-800">${emp.name}</span>
+                        </div>
+                    </td>
+                    <td class="py-4 px-6 text-right font-medium text-gray-700">${formatRp(pendapatan)}</td>
+                    <td class="py-4 px-6 text-right font-medium text-red-500">${formatRp(potongan)}</td>
+                    <td class="py-4 px-6 text-right font-bold text-gray-900">${formatRp(diterima)}</td>
+                `;
+                
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function viewSlip(emp) {
+            activeId = emp.id;
+            
+            const allRows = document.querySelectorAll('.row-karyawan');
+            allRows.forEach(row => {
+                row.classList.remove('baris-aktif');
+            });
+
+            const clickedRow = document.getElementById(`row-${emp.id}`);
+            if (clickedRow) {
+                clickedRow.classList.add('baris-aktif');
+            }
+
+            btnDownload.classList.remove('hidden');
+            slipContainer.innerHTML = `
+                <div class="bg-gray-50 border border-gray-100 rounded-xl p-5 flex-1 flex flex-col">
+                    <div class="border-b border-gray-200 pb-4 mb-4">
+                        <p class="font-bold text-brand-superdark text-lg">${emp.name}</p>
+                        <p class="text-xs text-gray-500">${emp.role}</p>
+                    </div>
+
+                    <div class="space-y-4 flex-1">
+                        <div class="flex justify-between items-center">
+                            <p class="text-sm text-gray-600">Gaji pokok</p>
+                            <p class="text-sm font-bold text-gray-900">${formatRp(emp.gajiPokok)}</p>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <p class="text-sm text-gray-600">Tunjangan tetap</p>
+                            <p class="text-sm font-bold text-gray-900">${formatRp(emp.tunjanganTetap)}</p>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <p class="text-sm text-gray-600">Lembur (${emp.lemburText})</p>
+                            <p class="text-sm font-bold text-gray-900">${formatRp(emp.lemburVal)}</p>
+                        </div>
+                        
+                        <div class="border-t border-dashed border-gray-200 my-2"></div>
+                        
+                        <div class="flex justify-between items-center">
+                            <p class="text-sm text-gray-600">BPJS Kes & Ket</p>
+                            <p class="text-sm font-bold text-red-500">- ${formatRp(emp.bpjs)}</p>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <p class="text-sm text-gray-600">Keterlambatan (${emp.terlambatText})</p>
+                            <p class="text-sm font-bold text-red-500">- ${formatRp(emp.terlambatVal)}</p>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <p class="text-sm text-gray-600">Alpa (${emp.alpaText})</p>
+                            <p class="text-sm font-bold text-red-500">- ${formatRp(emp.alpaVal)}</p>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <p class="text-sm text-gray-600">PPh 21 (estimasi)</p>
+                            <p class="text-sm font-bold text-red-500">- ${formatRp(emp.pph21)}</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <div class="bg-white border border-gray-200 border-dashed rounded-lg p-4">
+                            <p class="text-xs text-gray-500 mb-1">Diterima</p>
+                            <p class="text-2xl font-black text-gray-900">${formatRp(emp.totalDiterima)}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredData = payrollData.filter(emp => emp.name.toLowerCase().includes(searchTerm));
+            renderTable(filteredData);
+        });
+
+        // Inisialisasi awal
+        renderTable(payrollData);
+        if(payrollData.length > 0) {
+            viewSlip(payrollData[0]);
+        }
+    </script>
+
+    <script src="sidebar.js"></script>
+</body>
+</html>

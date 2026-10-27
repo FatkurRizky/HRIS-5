@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HRIS Dashboard</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            superdark: '#103530', 
+                            dark: '#144640',    
+                            bar: '#3B5F5A',     
+                        },
+                        accent: {
+                            DEFAULT: '#F5A83E', 
+                            hover: '#E59935',
+                        },
+                        bgpage: '#F4F6F6',      
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <style>
+        /* Custom Donut Chart using Conic Gradient */
+        .donut-chart {
+            background: conic-gradient(
+                #144640 0% 64.1%,    /* Tetap (91/142 = ~64.1%) */
+                #F5A83E 64.1% 90.1%,  /* Kontrak (37/142 = ~26%) */
+                #295D8B 90.1% 100%    /* Probation (14/142 = ~9.9%) */
+            );
+        }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-bgpage text-gray-800 font-sans antialiased overflow-hidden h-screen flex">
+
+    <!-- Mobile Header -->
+    <div class="lg:hidden fixed top-0 w-full bg-brand-superdark text-white p-4 flex justify-between items-center z-50 shadow-md">
+        <div class="flex items-center gap-3">
+            <div class="w-2.5 h-5 bg-accent rounded-[3px]"></div>
+            <h1 class="font-bold text-sm leading-tight">HRIS</h1>
+        </div>
+        <button id="mobileMenuBtn" class="text-white text-2xl focus:outline-none">
+            <i class="ph ph-list"></i>
+        </button>
+    </div>
+    
+    <!-- CONTAINER SIDEBAR GLOBAL-->
+    <div id="global-sidebar-container" class="flex shrink-0"></div>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-4 pt-20 lg:pt-8 lg:p-8 w-full">
+        
+        <!-- Hero Section -->
+        <div class="bg-brand-dark rounded-[1.25rem] p-6 lg:p-8 flex flex-col md:flex-row justify-between items-start md:items-center relative overflow-hidden mb-6 shadow-sm">
+            <!-- Decorative Circles -->
+            <div class="absolute -right-16 -top-16 w-64 h-64 bg-white/5 rounded-full pointer-events-none"></div>
+            <div class="absolute right-12 -bottom-24 w-48 h-48 bg-white/5 rounded-full pointer-events-none"></div>
+
+            <div class="relative z-10 text-white mb-6 md:mb-0">
+                <h2 class="text-3xl font-bold mb-2">Selamat pagi, Rina</h2>
+                <p id="currentDate" class="text-gray-300 text-sm mb-1">Memuat waktu...</p>
+                <p class="text-gray-300 text-sm">Shift pagi 08:00 sampai 17:00, Kantor Pusat Surabaya</p>
+            </div>
+
+            <div class="relative z-10 flex flex-col items-end md:items-center gap-3 w-full md:w-auto">
+                <!-- Clock -->
+                <div class="text-white text-[2.75rem] font-bold tracking-tight leading-none tabular-nums" id="liveClock">
+                    --:--:--
+                </div>
+                <a href="absensi-pribadi.html" class="bg-accent hover:bg-accent-hover text-brand-superdark font-bold px-6 py-2.5 rounded-lg transition-colors w-full md:w-auto shadow-sm text-center">
+                    Absen sekarang
+                </a>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            
+            <!-- Card 1 (Dark) -->
+            <div class="bg-brand-dark rounded-2xl p-6 shadow-sm flex flex-col">
+                <p class="text-4xl font-bold text-white mb-1">142</p>
+                <p class="text-gray-300 text-sm font-medium mb-3">Karyawan aktif</p>
+                <div class="mt-auto">
+                    <span class="inline-block bg-white/10 text-white text-xs font-semibold px-2.5 py-1 rounded-md">
+                        +3 bulan ini
+                    </span>
+                </div>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
+                <p class="text-4xl font-bold text-brand-dark mb-1">131</p>
+                <p class="text-gray-500 text-sm font-medium mb-3">Hadir hari ini</p>
+                <div class="mt-auto">
+                    <span class="inline-block bg-[#E5F5ED] text-[#1D8853] text-xs font-bold px-2.5 py-1 rounded-md">
+                        92% dari total
+                    </span>
+                </div>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
+                <p class="text-4xl font-bold text-brand-dark mb-1">6</p>
+                <p class="text-gray-500 text-sm font-medium mb-3">Sedang cuti atau izin</p>
+                <div class="mt-auto">
+                    <span class="inline-block bg-[#EBF3FC] text-[#2F6BBA] text-xs font-bold px-2.5 py-1 rounded-md">
+                        2 menunggu persetujuan
+                    </span>
+                </div>
+            </div>
+
+            <!-- Card 4 -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
+                <p class="text-4xl font-bold text-brand-dark mb-1">4</p>
+                <p class="text-gray-500 text-sm font-medium mb-3">Terlambat pagi ini</p>
+                <div class="mt-auto">
+                    <span class="inline-block bg-[#FCEAEA] text-[#D83A3A] text-xs font-bold px-2.5 py-1 rounded-md">
+                        +1 dari kemarin
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Row -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+            
+            <!-- Kehadiran Bar Chart -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <h3 class="text-xl font-extrabold text-brand-dark mb-8">Kehadiran minggu ini</h3>
+                <div class="flex items-end justify-around h-44 mt-4">
+                    <!-- Sen -->
+                    <div class="flex flex-col items-center group w-[12%] h-full">
+                        <p class="text-xs font-semibold text-gray-500 mb-2">96%</p>
+                        <div class="flex-1 w-full flex items-end">
+                            <div class="w-full bg-brand-bar rounded-t-md transition-all group-hover:opacity-80" style="height: 96%;"></div>
+                        </div>
+                        <p class="mt-3 text-xs text-gray-500 font-medium">Sen</p>
+                    </div>
+                    <!-- Sel -->
+                    <div class="flex flex-col items-center group w-[12%] h-full">
+                        <p class="text-xs font-semibold text-gray-500 mb-2">93%</p>
+                        <div class="flex-1 w-full flex items-end">
+                            <div class="w-full bg-brand-bar rounded-t-md transition-all group-hover:opacity-80" style="height: 93%;"></div>
+                        </div>
+                        <p class="mt-3 text-xs text-gray-500 font-medium">Sel</p>
+                    </div>
+                    <!-- Rab -->
+                    <div class="flex flex-col items-center group w-[12%] h-full">
+                        <p class="text-xs font-semibold text-gray-500 mb-2">97%</p>
+                        <div class="flex-1 w-full flex items-end">
+                            <div class="w-full bg-brand-bar rounded-t-md transition-all group-hover:opacity-80" style="height: 97%;"></div>
+                        </div>
+                        <p class="mt-3 text-xs text-gray-500 font-medium">Rab</p>
+                    </div>
+                    <!-- Kam -->
+                    <div class="flex flex-col items-center group w-[12%] h-full">
+                        <p class="text-xs font-semibold text-gray-500 mb-2">91%</p>
+                        <div class="flex-1 w-full flex items-end">
+                            <div class="w-full bg-brand-bar rounded-t-md transition-all group-hover:opacity-80" style="height: 91%;"></div>
+                        </div>
+                        <p class="mt-3 text-xs text-gray-500 font-medium">Kam</p>
+                    </div>
+                    <!-- Jum (Accent) -->
+                    <div class="flex flex-col items-center group w-[12%] h-full">
+                        <p class="text-xs font-semibold text-gray-500 mb-2">92%</p>
+                        <div class="flex-1 w-full flex items-end">
+                            <div class="w-full bg-accent rounded-t-md transition-all group-hover:opacity-80 shadow-[0_0_12px_rgba(245,168,62,0.3)]" style="height: 92%;"></div>
+                        </div>
+                        <p class="mt-3 text-xs text-gray-500 font-medium">Jum</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Menunggu Persetujuan -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
+                <h3 class="text-xl font-extrabold text-brand-dark mb-4">Menunggu persetujuan</h3>
+                <div class="flex-1 overflow-hidden">
+                    <ul class="divide-y divide-gray-100">
+                        <!-- Item 1 -->
+                        <li class="py-4 flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-gray-800">Kevin Santoso</p>
+                                <p class="text-sm text-gray-500 mt-0.5">Sakit, 2 hari</p>
+                            </div>
+                            <span class="bg-[#FCF1E3] text-[#C27918] text-[11px] px-3 py-1.5 rounded-full font-bold">
+                                Tahap Manager
+                            </span>
+                        </li>
+                        <!-- Item 2 -->
+                        <li class="py-4 flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-gray-800">Dewi Lestari</p>
+                                <p class="text-sm text-gray-500 mt-0.5">Cuti tahunan, 3 hari</p>
+                            </div>
+                            <span class="bg-[#FCF1E3] text-[#C27918] text-[11px] px-3 py-1.5 rounded-full font-bold">
+                                Tahap HR
+                            </span>
+                        </li>
+                        <!-- Item 3 -->
+                        <li class="py-4 flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-gray-800">Maya Putri</p>
+                                <p class="text-sm text-gray-500 mt-0.5">Izin, 1 hari</p>
+                            </div>
+                            <span class="bg-[#FCF1E3] text-[#C27918] text-[11px] px-3 py-1.5 rounded-full font-bold">
+                                Tahap Manager
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Row -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 pb-8">
+            
+            <!-- Komposisi Karyawan -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-center">
+                <h3 class="text-xl font-extrabold text-brand-dark mb-6">Komposisi karyawan</h3>
+                
+                <div class="flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-8">
+                    <!-- Donut Chart -->
+                    <div id="donutChart" class="relative w-36 h-36 rounded-full donut-chart flex items-center justify-center shrink-0 shadow-inner cursor-pointer hover:shadow-md transition-shadow">
+                        <div class="w-24 h-24 bg-white rounded-full flex flex-col items-center justify-center shadow-sm">
+                            <span class="text-2xl font-black text-gray-800 leading-none pointer-events-none">142</span>
+                        </div>
+                        
+                        <!-- Interactive Tooltip -->
+                        <div id="donutTooltip" class="absolute -top-24 bg-gray-900/95 backdrop-blur text-white text-xs p-3 rounded-lg shadow-xl opacity-0 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-50 flex flex-col gap-1.5 border border-gray-700">
+                            <p class="font-bold mb-1 border-b border-gray-700 pb-1.5">Rincian Karyawan</p>
+                            <div class="flex justify-between gap-6 items-center">
+                                <span class="flex items-center gap-1.5"><span class="w-2 h-2 bg-brand-dark rounded-full"></span>Tetap</span> <span class="font-bold">91</span>
+                            </div>
+                            <div class="flex justify-between gap-6 items-center">
+                                <span class="flex items-center gap-1.5"><span class="w-2 h-2 bg-accent rounded-full"></span>Kontrak</span> <span class="font-bold">37</span>
+                            </div>
+                            <div class="flex justify-between gap-6 items-center">
+                                <span class="flex items-center gap-1.5"><span class="w-2 h-2 bg-[#295D8B] rounded-full"></span>Probation</span> <span class="font-bold">14</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-3 h-3 bg-brand-dark rounded-sm"></div>
+                            <p class="text-sm text-gray-600 font-medium">Tetap, 91 orang</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="w-3 h-3 bg-accent rounded-sm"></div>
+                            <p class="text-sm text-gray-600 font-medium">Kontrak, 37 orang</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="w-3 h-3 bg-[#295D8B] rounded-sm"></div>
+                            <p class="text-sm text-gray-600 font-medium">Probation, 14 orang</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pengumuman -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <h3 class="text-xl font-extrabold text-brand-dark mb-4">Pengumuman</h3>
+                <ul class="divide-y divide-gray-100">
+                    <li class="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <p class="font-bold text-gray-800">Libur Maulid Nabi</p>
+                            <p class="text-sm text-gray-500 mt-0.5">Kantor tutup Senin, 26 Oktober</p>
+                        </div>
+                        <span class="bg-[#EBF3FC] text-[#2F6BBA] text-[11px] px-3 py-1.5 rounded-full font-bold self-start sm:self-center shrink-0">
+                            Libur
+                        </span>
+                    </li>
+                    <li class="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <p class="font-bold text-gray-800">Cut-off payroll</p>
+                            <p class="text-sm text-gray-500 mt-0.5">Absensi dikunci tanggal 25</p>
+                        </div>
+                        <span class="bg-[#FCF1E3] text-[#C27918] text-[11px] px-3 py-1.5 rounded-full font-bold self-start sm:self-center shrink-0">
+                            8 hari lagi
+                        </span>
+                    </li>
+                    <li class="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-0">
+                        <div>
+                            <p class="font-bold text-gray-800">Kontrak Dewi Lestari</p>
+                            <p class="text-sm text-gray-500 mt-0.5">Berakhir 31 Desember 2026</p>
+                        </div>
+                        <span class="bg-[#FCEAEA] text-[#D83A3A] text-[11px] px-3 py-1.5 rounded-full font-bold self-start sm:self-center shrink-0">
+                            Perpanjang
+                        </span>
+                    </li>
+                </ul>
+            </div>
+            
+        </div>
+    </main>
+
+    <script>
+        // --- REALTIME DATE & TIME  ---
+        function updateDateTime() {
+            const now = new Date();
+            
+            // Ambil jam dari perangkat lokal
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('liveClock').textContent = `${hours}:${minutes}:${seconds}`;
+            
+            // Format Tanggal (Bahasa Indonesia manual agar bebas dari error locale browser)
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            
+            const dayName = days[now.getDay()];
+            const date = now.getDate();
+            const monthName = months[now.getMonth()];
+            const year = now.getFullYear();
+            
+            document.getElementById('currentDate').textContent = `${dayName}, ${date} ${monthName} ${year}`;
+        }
+        
+        // Mulai jalankan jam real-time
+        updateDateTime();
+        setInterval(updateDateTime, 1000);
+        
+        // --- DONUT CHART TOOLTIP  ---
+        const donutChart = document.getElementById('donutChart');
+        const donutTooltip = document.getElementById('donutTooltip');
+        
+        if (donutChart && donutTooltip) {
+            donutChart.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (donutTooltip.classList.contains('opacity-0')) {
+                    donutTooltip.classList.remove('opacity-0');
+                    donutTooltip.classList.add('opacity-100');
+                } else {
+                    donutTooltip.classList.add('opacity-0');
+                    donutTooltip.classList.remove('opacity-100');
+                }
+            });
+            
+            document.addEventListener('click', () => {
+                donutTooltip.classList.add('opacity-0');
+                donutTooltip.classList.remove('opacity-100');
+            });
+        }
+    </script>
+    
+
+    <script src="sidebar.js"></script>
+</body>
+</html>
