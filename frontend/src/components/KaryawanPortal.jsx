@@ -350,7 +350,7 @@ export default function KaryawanPortal({ currentUser, onLogout }) {
   const isSuperAdminOrManager = ['SUPER_ADMIN', 'HR', 'MANAGER'].includes(currentUser?.role)
 
   return (
-    <div className="w-full max-w-6xl mx-auto bg-white min-h-screen shadow-sm flex flex-col font-sans">
+    <div className="w-full min-h-screen bg-gray-50 flex flex-col font-sans">
       {/* TOAST NOTIFIKASI */}
       {toast && (
         <div
@@ -366,82 +366,86 @@ export default function KaryawanPortal({ currentUser, onLogout }) {
         </div>
       )}
 
-      {/* HEADER UTAMA */}
-      <header className="flex justify-between items-center px-5 md:px-8 py-4 border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <div className="font-extrabold text-[#d95d39] text-2xl tracking-tight">Kerabat</div>
-          <span className="hidden sm:inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full bg-orange-100 text-[#d95d39]">
-            Portal Karyawan
-          </span>
-        </div>
-        <div className="flex items-center gap-4 text-sm font-medium">
-          <div className="flex flex-col items-end">
-            <span className="font-bold text-gray-900">
-              {employeeProfile?.user?.name || currentUser.name}
-            </span>
-            <span className="text-[11px] text-gray-500">
-              {employeeProfile?.position?.name || currentUser.role}
+      {/* HEADER UTAMA (FULL-WIDTH) */}
+      <header className="w-full bg-white border-b border-gray-200 sticky top-0 z-30 shadow-xs">
+        <div className="w-full px-5 sm:px-8 lg:px-12 py-3.5 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="font-extrabold text-[#d95d39] text-2xl tracking-tight">Kerabat</div>
+            <span className="hidden sm:inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full bg-orange-100 text-[#d95d39]">
+              Portal Karyawan
             </span>
           </div>
-          <button
-            onClick={onLogout}
-            className="text-sm font-semibold text-gray-500 hover:text-red-600 transition"
-          >
-            Keluar
-          </button>
+          <div className="flex items-center gap-4 text-sm font-medium">
+            <div className="flex flex-col items-end">
+              <span className="font-bold text-gray-900">
+                {employeeProfile?.user?.name || currentUser.name}
+              </span>
+              <span className="text-[11px] text-gray-500">
+                {employeeProfile?.position?.name || currentUser.role}
+              </span>
+            </div>
+            <button
+              onClick={onLogout}
+              className="text-sm font-semibold text-gray-500 hover:text-red-600 transition cursor-pointer"
+            >
+              Keluar
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* NAVIGASI TAB SESUAI DOCS/HRIS/KARYAWAN */}
-      <nav className="flex items-center gap-3 px-5 md:px-8 py-4 bg-white sticky top-0 z-20 border-b border-gray-50 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('absen')}
-          className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-bold transition ${
-            activeTab === 'absen'
-              ? 'bg-[#d95d39] text-white shadow-sm border border-[#d95d39]'
-              : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
-          }`}
-        >
-          Absen
-        </button>
-        <button
-          onClick={() => setActiveTab('cuti')}
-          className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-semibold transition ${
-            activeTab === 'cuti'
-              ? 'bg-[#d95d39] text-white shadow-sm border border-[#d95d39] font-bold'
-              : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
-          }`}
-        >
-          Cuti saya
-        </button>
-        <button
-          onClick={() => setActiveTab('slip-gaji')}
-          className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-semibold transition ${
-            activeTab === 'slip-gaji'
-              ? 'bg-[#d95d39] text-white shadow-sm border border-[#d95d39] font-bold'
-              : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
-          }`}
-        >
-          Slip gaji
-        </button>
-
-        {/* Tab opsional untuk role Admin/Manager agar bisa melihat Governance view */}
-        {isSuperAdminOrManager && (
+      {/* NAVIGASI TAB (FULL-WIDTH) */}
+      <nav className="w-full bg-white border-b border-gray-200 sticky top-[57px] z-20">
+        <div className="w-full px-5 sm:px-8 lg:px-12 py-3 flex items-center gap-3 overflow-x-auto">
           <button
-            onClick={() => setActiveTab('governance')}
-            className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-semibold transition ml-auto ${
-              activeTab === 'governance'
-                ? 'bg-stone-800 text-white font-bold'
-                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+            onClick={() => setActiveTab('absen')}
+            className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-bold transition cursor-pointer ${
+              activeTab === 'absen'
+                ? 'bg-[#d95d39] text-white shadow-sm border border-[#d95d39]'
+                : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
             }`}
           >
-            🛡️ Role: {currentUser.role}
+            Absen
           </button>
-        )}
+          <button
+            onClick={() => setActiveTab('cuti')}
+            className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-semibold transition cursor-pointer ${
+              activeTab === 'cuti'
+                ? 'bg-[#d95d39] text-white shadow-sm border border-[#d95d39] font-bold'
+                : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
+            }`}
+          >
+            Cuti saya
+          </button>
+          <button
+            onClick={() => setActiveTab('slip-gaji')}
+            className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-semibold transition cursor-pointer ${
+              activeTab === 'slip-gaji'
+                ? 'bg-[#d95d39] text-white shadow-sm border border-[#d95d39] font-bold'
+                : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
+            }`}
+          >
+            Slip gaji
+          </button>
+
+          {/* Tab opsional untuk role Admin/Manager agar bisa melihat Governance view */}
+          {isSuperAdminOrManager && (
+            <button
+              onClick={() => setActiveTab('governance')}
+              className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-semibold transition ml-auto cursor-pointer ${
+                activeTab === 'governance'
+                  ? 'bg-stone-800 text-white font-bold'
+                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+              }`}
+            >
+              🛡️ Role: {currentUser.role}
+            </button>
+          )}
+        </div>
       </nav>
 
-      {/* MAIN CONTENT AREA */}
-      <main className="flex-1 px-5 md:px-8 py-6">
+      {/* MAIN CONTENT AREA: FULL WIDTH RESPONSIVE PADDING */}
+      <main className="w-full flex-1 px-5 sm:px-8 lg:px-12 py-6 md:py-8">
         {/* =================================================================== */}
         {/* TAB 1: ABSEN (docs/hris/karyawan/index.html) */}
         {/* =================================================================== */}
