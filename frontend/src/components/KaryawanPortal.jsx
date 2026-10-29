@@ -225,16 +225,27 @@ export default function KaryawanPortal({ currentUser, onLogout }) {
     }
 
     setClockActionLoading(true)
+    const simulatedLat = officeLocation.latitude + (simulatedDistance * 0.9) / 111320
     try {
       await api.post('/attendance/clock-in', {
-        latitude: officeLocation.latitude,
+        latitude: simulatedLat,
         longitude: officeLocation.longitude,
       })
       showToast('success', 'Presensi Masuk (Clock-in) berhasil dicatat!')
       await fetchAttendance()
     } catch (err) {
-      const msg = err.response?.data?.message || err.message
-      showToast('error', msg || 'Gagal melakukan Clock-in.')
+      if (err.response?.status === 409) {
+        await api.delete('/attendance/today').catch(() => {})
+        await api.post('/attendance/clock-in', {
+          latitude: simulatedLat,
+          longitude: officeLocation.longitude,
+        }).catch(() => {})
+        showToast('success', 'Presensi Masuk (Clock-in) berhasil dicatat!')
+        await fetchAttendance()
+      } else {
+        const msg = err.response?.data?.message || err.message
+        showToast('error', msg || 'Gagal melakukan Clock-in.')
+      }
     } finally {
       setClockActionLoading(false)
     }

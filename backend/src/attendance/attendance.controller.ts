@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   ParseIntPipe,
   Post,
@@ -34,6 +35,11 @@ export class AttendanceController {
     @Body() dto: ClockAttendanceDto,
   ) {
     return this.attendanceService.clockOut(req.user.id, dto);
+  }
+
+  @Delete('today')
+  resetToday(@Request() req: { user: { id: string } }) {
+    return this.attendanceService.resetToday(req.user.id);
   }
 
   @Get('my-records')

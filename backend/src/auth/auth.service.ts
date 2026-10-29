@@ -37,6 +37,13 @@ export class AuthService {
         email,
         password: passwordHash,
         role: 'EMPLOYEE',
+        employee: {
+          create: {
+            nik: `EMP-${Date.now().toString().slice(-6)}`,
+            status: 'TETAP',
+            leaveQuota: 12,
+          },
+        },
       },
       select: { id: true, name: true, email: true, role: true },
     });

@@ -108,12 +108,23 @@ export class AttendanceService {
   }
 
   private async getEmployeeByUserId(userId: string) {
-    const employee = await this.prisma.employee.findUnique({
+    let employee = await this.prisma.employee.findUnique({
       where: { userId },
     });
 
     if (!employee) {
-      throw new NotFoundException('Profil karyawan belum terdaftar');
+      const user = await this.prisma.user.findUnique({ where: { id: userId } });
+      if (!user) {
+        throw new NotFoundException('Pengguna tidak ditemukan');
+      }
+      employee = await this.prisma.employee.create({
+        data: {
+          userId: user.id,
+          nik: `EMP-${Date.now().toString().slice(-6)}`,
+          status: 'TETAP',
+          leaveQuota: 12,
+        },
+      });
     }
 
     return employee;
@@ -231,6 +242,20 @@ export class AttendanceService {
       officeName: office?.name ?? 'Default Office',
       attendance: updated,
     };
+  }
+
+  async resetToday(userId: string) {
+    const employee = await this.getEmployeeByUserId(userId);
+    const today = this.getTodayDateOnly(new Date());
+
+    await this.prisma.attendance.deleteMany({
+      where: {
+        employeeId: employee.id,
+        date: today,
+      },
+    });
+
+    return { message: 'Presensi hari ini berhasil di-reset' };
   }
 
   async getMyRecords(userId: string, month?: number, year?: number) {
