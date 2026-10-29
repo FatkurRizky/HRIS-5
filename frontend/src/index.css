@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --color-brand-teal: #173e3b;
+  --color-brand-teal-dark: #102e2c;
+  --color-brand-amber: #e68a35;
+  --color-brand-bg-right: #eae7e1;
+  --color-brand-card: #e2ded6;
+  --color-brand-input: #ede9e2;
+  --color-brand-border: #d99748;
+}
+
+body {
+  font-family: var(--font-sans);
+}

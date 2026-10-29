@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Masuk - Human Resource Information System</title>
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              teal: '#173e3b',
+              'teal-dark': '#102e2c',
+              'teal-light': '#21524e',
+              amber: '#e68a35',
+              'amber-hover': '#cf7726',
+              bgRight: '#eae7e1',
+              cardBg: '#e2ded6',
+              inputBg: '#ede9e2',
+              inputBorder: '#d99748',
+              mutedText: '#687572'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .ripple-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(77, 137, 130, 0.22);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body class="w-full min-h-screen bg-[#eae7e1] select-none overflow-x-hidden p-0 m-0">
+
+  <!-- Main Container: Full Screen Edge-to-Edge (Tanpa Space / Margin) -->
+  <div class="w-full min-h-screen grid grid-cols-1 lg:grid-cols-2 relative">
+
+    <!-- ============================================== -->
+    <!-- LEFT PANEL: Hero & Branding (Full Height)      -->
+    <!-- ============================================== -->
+    <div class="relative bg-gradient-to-br from-[#1b4642] via-[#163e3b] to-[#0f2e2c] p-8 sm:p-14 lg:p-16 xl:p-24 flex flex-col justify-between overflow-hidden text-white min-h-[500px] lg:min-h-screen">
+      
+      <!-- Ambient light effect -->
+      <div class="absolute -top-24 -right-24 w-[500px] h-[500px] bg-[#c59858] opacity-20 blur-[120px] rounded-full pointer-events-none"></div>
+
+      <!-- Concentric decorative rings in bottom right -->
+      <div class="absolute -bottom-48 -right-48 w-[800px] h-[800px] pointer-events-none">
+        <div class="ripple-ring w-[800px] h-[800px] -top-[0px] -left-[0px]"></div>
+        <div class="ripple-ring w-[640px] h-[640px] top-[80px] left-[80px]"></div>
+        <div class="ripple-ring w-[480px] h-[480px] top-[160px] left-[160px]"></div>
+        <div class="ripple-ring w-[320px] h-[320px] top-[240px] left-[240px]"></div>
+      </div>
+
+      <!-- Top Branding -->
+      <div class="relative z-10 flex items-center space-x-3.5">
+        <div class="w-8 h-8 rounded-[8px] bg-[#e68a35] shadow-sm flex items-center justify-center shrink-0">
+          <svg class="w-4.5 h-4.5 text-white opacity-95" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 2a2 2 0 00-2 2v1a2 2 0 002 2 2 2 0 002-2V4a2 2 0 00-2-2zM4 7a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V7z"/>
+          </svg>
+        </div>
+        <span class="text-white text-[16px] sm:text-[17px] font-bold tracking-tight">
+          Human Resource Information System
+        </span>
+      </div>
+
+      <!-- Bottom Headline & Feature Bullets -->
+      <div class="relative z-10 mt-20 lg:mt-32 max-w-xl">
+        <h1 class="text-4xl sm:text-5xl lg:text-[50px] xl:text-[54px] font-extrabold text-white leading-[1.15] tracking-tight mb-10">
+          Absensi, cuti, dan<br>
+          gaji di satu<br>
+          tempat
+        </h1>
+
+        <!-- Feature List -->
+        <ul class="space-y-5 text-[15px] sm:text-[16px] text-[#9db7b2] font-medium leading-relaxed">
+          <li class="flex items-start space-x-3.5">
+            <svg class="w-5.5 h-5.5 text-[#e68a35] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
+            <span>Clock in dari radius kantor, tanpa mesin fingerprint</span>
+          </li>
+          <li class="flex items-start space-x-3.5">
+            <svg class="w-5.5 h-5.5 text-[#e68a35] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
+            <span>Cuti disetujui Manager lalu HR, statusnya terlihat jelas</span>
+          </li>
+          <li class="flex items-start space-x-3.5">
+            <svg class="w-5.5 h-5.5 text-[#e68a35] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
+            <span>Slip gaji dihitung otomatis dari absensi dan lembur</span>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- ============================================== -->
+    <!-- RIGHT PANEL: Login Form (Full Height)          -->
+    <!-- ============================================== -->
+    <div class="relative bg-[#eae7e1] p-8 sm:p-14 lg:p-16 xl:p-24 flex items-center justify-center overflow-hidden min-h-screen">
+      
+      <!-- Subtle organic warm backdrop blur -->
+      <div class="absolute -top-16 -left-16 w-96 h-96 bg-[#e7c7a5] opacity-25 blur-[120px] rounded-full pointer-events-none"></div>
+      <div class="absolute -bottom-20 -right-20 w-96 h-96 bg-[#ded9cf] opacity-40 blur-[100px] rounded-full pointer-events-none"></div>
+
+      <!-- Form Wrapper -->
+      <div class="w-full max-w-[440px] relative z-10 flex flex-col justify-center">
+        
+        <!-- Header -->
+        <div class="mb-8">
+          <h2 class="text-3xl sm:text-4xl font-extrabold text-[#112a27] tracking-tight">Masuk</h2>
+          <p class="text-[14px] sm:text-[15px] text-[#697472] mt-2 font-normal">
+            Gunakan email kerja yang terdaftar di HR.
+          </p>
+        </div>
+
+        <!-- Form -->
+        <form id="loginForm" class="space-y-5" onsubmit="handleLogin(event)">
+          
+          <!-- Email Input -->
+          <div>
+            <label for="email" class="block text-[14px] font-bold text-[#142d2a] mb-2">
+              Email kerja
+            </label>
+            <div class="relative">
+              <input 
+                type="email" 
+                id="email" 
+                name="email" 
+                required 
+                value="nama@kerabat.id"
+                onfocus="if(this.value==='nama@kerabat.id') this.value='';"
+                placeholder="nama@kerabat.id" 
+                class="w-full px-4 py-3 rounded-lg bg-[#ede9e2] border-2 border-[#d99748] text-[#16302c] placeholder-[#9c9689] text-[15px] font-medium outline-none transition-all shadow-sm focus:border-[#c58235] focus:bg-[#f2efe9]"
+              />
+            </div>
+          </div>
+
+          <!-- Password Input -->
+          <div>
+            <label for="password" class="block text-[14px] font-bold text-[#142d2a] mb-2">
+              Kata sandi
+            </label>
+            <div class="relative rounded-lg bg-[#ede9e2] border border-[#dedad1] focus-within:border-[#d99748] focus-within:border-2 transition-all shadow-sm">
+              <input 
+                type="password" 
+                id="password" 
+                name="password" 
+                required 
+                placeholder="••••••••" 
+                class="w-full pl-4 pr-24 py-3 bg-transparent text-[#16302c] placeholder-[#9c9689] text-[15px] font-medium outline-none"
+              />
+              <button 
+                type="button" 
+                id="togglePassword" 
+                onclick="togglePasswordVisibility()" 
+                class="absolute right-3.5 top-1/2 -translate-y-1/2 text-[14px] font-bold text-[#173e3b] hover:text-[#102e2c] transition-colors py-1 px-2 focus:outline-none"
+              >
+                Tampilkan
+              </button>
+            </div>
+            
+            <!-- Forgot Password Link -->
+            <div class="flex justify-end mt-2.5">
+              <a href="#" onclick="showNotice('Silakan hubungi administrator HR perusahaan Anda untuk reset kata sandi.')" class="text-[13px] sm:text-[14px] font-bold text-[#173e3b] underline hover:text-[#102e2c] transition-colors">
+                Lupa kata sandi?
+              </a>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <div class="pt-2">
+            <button 
+              type="submit" 
+              id="submitBtn" 
+              class="w-full py-3.5 px-4 rounded-lg bg-[#173e3b] hover:bg-[#123330] active:scale-[0.99] text-white font-bold text-[16px] shadow-sm transition-all flex items-center justify-center space-x-2"
+            >
+              <span id="btnText">Masuk</span>
+              <svg id="btnSpinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Register Link -->
+          <div class="text-center pt-2">
+            <p class="text-[14px] text-[#697472]">
+              Belum punya akun? 
+              <a href="#" onclick="showNotice('Pendaftaran akun karyawan baru dilakukan oleh HR Admin.')" class="font-bold text-[#173e3b] underline hover:text-[#102e2c] transition-colors ml-1">
+                Daftar
+              </a>
+            </p>
+          </div>
+
+        </form>
+
+        <!-- Demo Accounts Section -->
+        <div class="mt-8 pt-4 pb-4 px-4 sm:px-5 rounded-xl border border-dashed border-[#ccc7bc] bg-[#e3dfd7]/70">
+          <p class="text-[12px] sm:text-[13px] font-medium text-[#646e6b] mb-3">
+            Akun demo, kata sandi semuanya <span class="font-bold text-[#354340]">kerabat123</span>
+          </p>
+          
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <button 
+              type="button" 
+              onclick="fillDemo('employee@kerabat.id', 'kerabat123', this)" 
+              class="demo-pill py-2 px-2.5 bg-white hover:bg-stone-50 active:bg-amber-50 text-[12px] sm:text-[13px] font-semibold text-[#293c39] rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.06)] border border-[#d6d2c8] text-center transition-all"
+            >
+              Employee
+            </button>
+            <button 
+              type="button" 
+              onclick="fillDemo('manager@kerabat.id', 'kerabat123', this)" 
+              class="demo-pill py-2 px-2.5 bg-white hover:bg-stone-50 active:bg-amber-50 text-[12px] sm:text-[13px] font-semibold text-[#293c39] rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.06)] border border-[#d6d2c8] text-center transition-all"
+            >
+              Manager
+            </button>
+            <button 
+              type="button" 
+              onclick="fillDemo('hr@kerabat.id', 'kerabat123', this)" 
+              class="demo-pill py-2 px-2.5 bg-white hover:bg-stone-50 active:bg-amber-50 text-[12px] sm:text-[13px] font-semibold text-[#293c39] rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.06)] border border-[#d6d2c8] text-center transition-all"
+            >
+              HR
+            </button>
+            <button 
+              type="button" 
+              onclick="fillDemo('admin@kerabat.id', 'kerabat123', this)" 
+              class="demo-pill py-2 px-2.5 bg-white hover:bg-stone-50 active:bg-amber-50 text-[12px] sm:text-[13px] font-semibold text-[#293c39] rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.06)] border border-[#d6d2c8] text-center transition-all"
+            >
+              SuperAdmin
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Toast Notification Modal -->
+  <div id="toast" class="fixed top-6 right-6 z-50 transform translate-y-[-150%] transition-transform duration-300 ease-out max-w-sm w-full">
+    <div id="toastBox" class="p-4 rounded-xl shadow-xl border flex items-start space-x-3 bg-white text-stone-800 border-stone-200">
+      <div id="toastIcon" class="mt-0.5"></div>
+      <div class="flex-1">
+        <h4 id="toastTitle" class="text-sm font-bold"></h4>
+        <p id="toastMessage" class="text-xs text-stone-600 mt-0.5 leading-relaxed"></p>
+      </div>
+      <button onclick="hideToast()" class="text-stone-400 hover:text-stone-600 text-sm font-bold">✕</button>
+    </div>
+  </div>
+
+  <script>
+    function togglePasswordVisibility() {
+      const passwordInput = document.getElementById('password');
+      const toggleBtn = document.getElementById('togglePassword');
+      
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleBtn.textContent = 'Sembunyikan';
+      } else {
+        passwordInput.type = 'password';
+        toggleBtn.textContent = 'Tampilkan';
+      }
+    }
+
+    function fillDemo(email, password, buttonElement) {
+      const emailInput = document.getElementById('email');
+      const passInput = document.getElementById('password');
+      
+      emailInput.value = email;
+      passInput.value = password;
+
+      document.querySelectorAll('.demo-pill').forEach(btn => {
+        btn.classList.remove('ring-2', 'ring-[#173e3b]', 'bg-[#f4f7f6]');
+      });
+      if (buttonElement) {
+        buttonElement.classList.add('ring-2', 'ring-[#173e3b]', 'bg-[#f4f7f6]');
+      }
+
+      showToast('success', 'Akun Demo Dipilih', `Email: ${email} terisi otomatis.`);
+    }
+
+    function handleLogin(event) {
+      event.preventDefault();
+      const email = document.getElementById('email').value;
+      const submitBtn = document.getElementById('submitBtn');
+      const btnText = document.getElementById('btnText');
+      const btnSpinner = document.getElementById('btnSpinner');
+
+      submitBtn.disabled = true;
+      btnText.textContent = 'Memproses...';
+      btnSpinner.classList.remove('hidden');
+
+      setTimeout(() => {
+        submitBtn.disabled = false;
+        btnText.textContent = 'Masuk';
+        btnSpinner.classList.add('hidden');
+
+        showToast('success', 'Berhasil Masuk!', `Selamat datang kembali, ${email}`);
+      }, 800);
+    }
+
+    let toastTimeout;
+    function showToast(type, title, message) {
+      clearTimeout(toastTimeout);
+      const toast = document.getElementById('toast');
+      const toastTitle = document.getElementById('toastTitle');
+      const toastMessage = document.getElementById('toastMessage');
+      const toastIcon = document.getElementById('toastIcon');
+
+      toastTitle.textContent = title;
+      toastMessage.textContent = message;
+
+      if (type === 'success') {
+        toastIcon.innerHTML = `<svg class="w-5 h-5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>`;
+      } else {
+        toastIcon.innerHTML = `<svg class="w-5 h-5 text-amber-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>`;
+      }
+
+      toast.classList.remove('translate-y-[-150%]');
+      toast.classList.add('translate-y-0');
+
+      toastTimeout = setTimeout(() => {
+        hideToast();
+      }, 4000);
+    }
+
+    function hideToast() {
+      const toast = document.getElementById('toast');
+      toast.classList.remove('translate-y-0');
+      toast.classList.add('translate-y-[-150%]');
+    }
+
+    function showNotice(msg) {
+      showToast('info', 'Informasi', msg);
+    }
+  </script>
+</body>
+</html>

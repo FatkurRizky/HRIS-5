@@ -1,0 +1,31 @@
+{
+  "name": "hris-monorepo",
+  "version": "1.0.0",
+  "description": "Enterprise Human Resource Information System (HRIS) Monorepo",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev:frontend & npm run dev:backend",
+    "dev:backend": "npm run start:dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "npm run build --workspace=backend",
+    "build:frontend": "npm run build --workspace=frontend",
+    "seed": "npm run seed --workspace=backend",
+    "lint": "npm run lint --workspaces",
+    "test": "npm run test --workspace=backend"
+  },
+  "keywords": [
+    "hris",
+    "monorepo",
+    "nestjs",
+    "react",
+    "prisma",
+    "tailwind"
+  ],
+  "author": "Muhammad Fatkur Rizky",
+  "license": "UNLICENSED"
+}

@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  HR
+  MANAGER
+  EMPLOYEE
+}
+
+enum EmployeeStatus {
+  TETAP
+  KONTRAK
+  PROBATION
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ALPHA
+  LEAVE
+}
+
+enum LeaveType {
+  CUTI
+  SAKIT
+  IZIN
+}
+
+enum LeaveStatus {
+  PENDING
+  MANAGER_APPROVED
+  HR_APPROVED
+  REJECTED
+}
+
+enum PayrollStatus {
+  DRAFT
+  APPROVED
+  PAID
+}
+
+model User {
+  id        String    @id @default(uuid())
+  name      String
+  email     String    @unique
+  password  String
+  role      Role      @default(EMPLOYEE)
+  employee  Employee?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Department {
+  id          String     @id @default(uuid())
+  name        String     @unique
+  description String?
+  employees   Employee[]
+}
+
+model Position {
+  id         String     @id @default(uuid())
+  name       String     @unique
+  baseSalary Int        @default(0)
+  employees  Employee[]
+}
+
+model OfficeLocation {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  latitude  Float
+  longitude Float
+  radius    Int      @default(50)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Employee {
+  id              String          @id @default(uuid())
+  userId          String          @unique
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nik             String?         @unique
+  phone           String?
+  address         String?
+  birthDate       DateTime?
+  joinDate        DateTime        @default(now())
+  contractEndDate DateTime?
+  leaveQuota      Int             @default(12)
+  status          EmployeeStatus  @default(PROBATION)
+  departmentId    String?
+  department      Department?     @relation(fields: [departmentId], references: [id])
+  positionId      String?
+  position        Position?       @relation(fields: [positionId], references: [id])
+  managerId       String?
+  manager         Employee?       @relation("ManagerSub", fields: [managerId], references: [id])
+  subordinates    Employee[]      @relation("ManagerSub")
+  attendances     Attendance[]
+  leaveRequests   LeaveRequest[]
+  payrolls        PayrollRecord[]
+  salary          Salary?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model Attendance {
+  id              String           @id @default(uuid())
+  employeeId      String
+  employee        Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date            DateTime         @db.Date
+  clockIn         DateTime?
+  clockOut        DateTime?
+  latitude        Float?
+  longitude       Float?
+  clockOutLat     Float?
+  clockOutLong    Float?
+  overtimeMinutes Int              @default(0)
+  status          AttendanceStatus @default(PRESENT)
+  createdAt       DateTime         @default(now())
+
+  @@unique([employeeId, date])
+}
+
+model LeaveRequest {
+  id              String      @id @default(uuid())
+  employeeId      String
+  employee        Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type            LeaveType
+  startDate       DateTime    @db.Date
+  endDate         DateTime    @db.Date
+  workDays        Int         @default(1)
+  reason          String?
+  rejectionReason String?
+  status          LeaveStatus @default(PENDING)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model Salary {
+  id           String   @id @default(uuid())
+  employeeId   String   @unique
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  baseSalary   Int
+  allowance    Int      @default(0)
+  overtimeRate Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model PayrollRecord {
+  id           String        @id @default(uuid())
+  employeeId   String
+  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  periodMonth  Int
+  periodYear   Int
+  baseSalary   Int
+  allowance    Int           @default(0)
+  overtime     Int           @default(0)
+  deductions   Int           @default(0)
+  bpjs         Int           @default(0)
+  pph21        Int           @default(0)
+  total        Int
+  revisionNote String?
+  status       PayrollStatus @default(DRAFT)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @default(now()) @updatedAt
+
+  @@unique([employeeId, periodMonth, periodYear])
+}
