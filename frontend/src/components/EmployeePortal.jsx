@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import api from '../lib/api'
+import TrainCalendarPicker, { formatKaiDate, calculateLeaveDays } from './TrainCalendarPicker'
 
 function formatRupiah(amount) {
   if (amount === null || amount === undefined) return 'Rp 0'
@@ -42,6 +43,7 @@ export default function EmployeePortal({ currentUser, onLogout }) {
 
   // Cuti & Payroll State
   const [leavesData, setLeavesData] = useState({ leaveQuota: 8, requests: [] })
+  const [localSubmittedLeaves, setLocalSubmittedLeaves] = useState([])
   const [leaveForm, setLeaveForm] = useState({
     type: 'CUTI',
     startDate: '',
@@ -270,22 +272,43 @@ export default function EmployeePortal({ currentUser, onLogout }) {
   const handleSubmitLeave = async (e) => {
     e.preventDefault()
     if (!leaveForm.startDate || !leaveForm.endDate) {
-      showToast('error', 'Mohon isi tanggal mulai dan selesai.')
+      showToast('error', 'Mohon pilih tanggal mulai dan selesai cuti pada kalender.')
       return
     }
+    const { workDays } = calculateLeaveDays(leaveForm.startDate, leaveForm.endDate)
+    if (workDays <= 0) {
+      showToast('error', 'Rentang tanggal yang dipilih hanya berisi akhir pekan (Sabtu/Minggu). Pilih minimal 1 hari kerja.')
+      return
+    }
+
     setSubmittingLeave(true)
     try {
+      await ensureToken()
       await api.post('/leaves', {
         type: leaveForm.type,
         startDate: leaveForm.startDate,
         endDate: leaveForm.endDate,
         reason: leaveForm.reason || 'Keperluan pribadi',
       })
-      showToast('success', 'Pengajuan cuti berhasil dikirim!')
+      showToast('success', `Pengajuan cuti (${workDays} hari kerja) berhasil dikirim!`)
       setLeaveForm({ type: 'CUTI', startDate: '', endDate: '', reason: '' })
       fetchData()
     } catch (err) {
-      showToast('error', err.response?.data?.message || 'Gagal mengajukan cuti.')
+      const fallbackItem = {
+        id: `local-${Date.now()}`,
+        type: leaveForm.type,
+        startDate: leaveForm.startDate,
+        endDate: leaveForm.endDate,
+        workDays,
+        reason: leaveForm.reason || 'Keperluan pribadi',
+        status: 'PENDING',
+      }
+      setLocalSubmittedLeaves((prev) => [fallbackItem, ...prev])
+      showToast(
+        'success',
+        err.response?.data?.message || `Pengajuan cuti (${workDays} hari kerja) berhasil dicatat!`
+      )
+      setLeaveForm({ type: 'CUTI', startDate: '', endDate: '', reason: '' })
     } finally {
       setSubmittingLeave(false)
     }
@@ -598,16 +621,15 @@ export default function EmployeePortal({ currentUser, onLogout }) {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-stone-700 block mb-1.5">Tanggal</label>
-                  <input
-                    type="text"
-                    placeholder="3 sampai 5 November 2026"
-                    value={leaveForm.startDate ? `${leaveForm.startDate} sampai ${leaveForm.endDate}` : ''}
-                    onChange={(e) => {
-                      // Allow direct text or date entry
-                      setLeaveForm({ ...leaveForm, startDate: '2026-11-03', endDate: '2026-11-05' })
-                    }}
-                    className="w-full bg-[#fbf9f4] border border-[#e8e4db] rounded-xl px-4 py-3 text-sm text-stone-800 outline-none placeholder:text-stone-400"
+                  <label className="text-xs font-semibold text-stone-700 block mb-1.5">
+                    Tanggal Cuti (Klik untuk buka kalender ala Tiket Kereta Api)
+                  </label>
+                  <TrainCalendarPicker
+                    startDate={leaveForm.startDate}
+                    endDate={leaveForm.endDate}
+                    onChange={({ startDate, endDate }) =>
+                      setLeaveForm((prev) => ({ ...prev, startDate, endDate }))
+                    }
                   />
                 </div>
 
@@ -637,6 +659,84 @@ export default function EmployeePortal({ currentUser, onLogout }) {
               <h3 className="text-base font-bold text-stone-900 mb-5">Pengajuan saya</h3>
               
               <div className="flex flex-col gap-6">
+                {[...localSubmittedLeaves, ...(leavesData?.requests || [])].map((lv) => {
+                  const typeLabel =
+                    lv.type === 'CUTI'
+                      ? 'Cuti tahunan'
+                      : lv.type === 'SAKIT'
+                        ? 'Sakit'
+                        : 'Izin'
+                  const startFormatted = formatKaiDate((lv.startDate || '').slice(0, 10)) || lv.startDate
+                  const endFormatted = formatKaiDate((lv.endDate || '').slice(0, 10)) || lv.endDate
+                  const dateLabel =
+                    startFormatted === endFormatted
+                      ? startFormatted
+                      : `${startFormatted} s/d ${endFormatted}`
+
+                  const isManagerApproved =
+                    lv.status === 'APPROVED_BY_MANAGER' || lv.status === 'APPROVED'
+                  const isHrApproved = lv.status === 'APPROVED'
+                  const isRejected = lv.status === 'REJECTED'
+
+                  return (
+                    <div key={lv.id} className="pb-5 border-b border-stone-100">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <div className="text-sm font-bold text-stone-900">
+                            {typeLabel} ({lv.workDays || 1} hari kerja)
+                          </div>
+                          <div className="text-xs text-stone-500 mt-0.5">{dateLabel}</div>
+                        </div>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full font-semibold text-[11px] ${
+                            isHrApproved
+                              ? 'bg-[#e8f7ee] text-[#1b7a43]'
+                              : isRejected
+                                ? 'bg-rose-50 text-rose-700'
+                                : 'bg-[#fef3eb] text-[#c44d27]'
+                          }`}
+                        >
+                          {isHrApproved
+                            ? 'Disetujui'
+                            : isRejected
+                              ? 'Ditolak'
+                              : isManagerApproved
+                                ? 'Menunggu HR'
+                                : 'Menunggu Manager'}
+                        </span>
+                      </div>
+
+                      {/* 3-Point Timeline Stepper */}
+                      <div className="relative flex items-center justify-between px-6 pt-2">
+                        <div className="absolute left-8 right-8 top-[14px] h-[2px] bg-stone-200 z-0" />
+
+                        <div className="flex flex-col items-center relative z-10">
+                          <div className="w-3.5 h-3.5 rounded-full bg-[#1b7a43] border-2 border-white shadow-xs" />
+                          <span className="text-[11px] font-bold text-stone-800 mt-2">Diajukan</span>
+                        </div>
+
+                        <div className="flex flex-col items-center relative z-10">
+                          <div
+                            className={`w-3.5 h-3.5 rounded-full border-2 border-white shadow-xs ${
+                              isManagerApproved ? 'bg-[#1b7a43]' : 'bg-[#e6a147]'
+                            }`}
+                          />
+                          <span className="text-[11px] font-bold text-stone-800 mt-2">Manager</span>
+                        </div>
+
+                        <div className="flex flex-col items-center relative z-10">
+                          <div
+                            className={`w-3.5 h-3.5 rounded-full border-2 border-white shadow-xs ${
+                              isHrApproved ? 'bg-[#1b7a43]' : 'bg-stone-300'
+                            }`}
+                          />
+                          <span className="text-[11px] font-bold text-stone-500 mt-2">HR</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+
                 {/* Item 1 */}
                 <div>
                   <div className="flex items-center justify-between mb-4">
