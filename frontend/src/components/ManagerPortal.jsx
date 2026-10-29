@@ -1,48 +1,97 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import api from '../lib/api'
+
+const INITIAL_APPROVALS = [
+  {
+    id: '1',
+    initials: 'KS',
+    avatarBg: 'bg-[#b86d1a]',
+    name: 'Kevin Santoso',
+    desc: 'Sakit, 2 hari (20 sampai 21 Okt)',
+    status: 'PENDING',
+  },
+  {
+    id: '2',
+    initials: 'DL',
+    avatarBg: 'bg-[#2b6cb0]',
+    name: 'Dewi Lestari',
+    desc: 'Cuti tahunan, 3 hari (3 sampai 5 Nov)',
+    status: 'PENDING',
+  },
+  {
+    id: '3',
+    initials: 'BP',
+    avatarBg: 'bg-[#1a365d]',
+    name: 'Bima Pratama',
+    desc: 'Izin, 1 hari (28 Okt)',
+    status: 'PENDING',
+  },
+]
+
+function getInitials(name) {
+  if (!name) return 'KR'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
 
 export default function ManagerPortal({ currentUser, onLogout }) {
   const [activeTab, setActiveTab] = useState('ringkasan') // 'ringkasan' | 'persetujuan' | 'tim'
-  const [approvalList, setApprovalList] = useState([
-    {
-      id: '1',
-      initials: 'KS',
-      avatarBg: 'bg-[#b86d1a]',
-      name: 'Kevin Santoso',
-      desc: 'Sakit, 2 hari (20 sampai 21 Okt)',
-      status: 'PENDING',
-    },
-    {
-      id: '2',
-      initials: 'DL',
-      avatarBg: 'bg-[#2b6cb0]',
-      name: 'Dewi Lestari',
-      desc: 'Cuti tahunan, 3 hari (3 sampai 5 Nov)',
-      status: 'PENDING',
-    },
-    {
-      id: '3',
-      initials: 'BP',
-      avatarBg: 'bg-[#1a365d]',
-      name: 'Bima Pratama',
-      desc: 'Izin, 1 hari (28 Okt)',
-      status: 'PENDING',
-    },
-  ])
-
+  const [approvalList, setApprovalList] = useState(INITIAL_APPROVALS)
   const [toast, setToast] = useState(null)
+
   const showToast = (msg) => {
     setToast(msg)
     setTimeout(() => setToast(null), 3000)
   }
 
-  const handleAction = (id, action) => {
+  const fetchApprovals = useCallback(async () => {
+    try {
+      const res = await api.get('/leaves/approvals')
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        const mapped = res.data.map((lv) => ({
+          id: lv.id,
+          initials: getInitials(lv.employee?.user?.name),
+          avatarBg: 'bg-[#285a84]',
+          name: lv.employee?.user?.name || 'Karyawan',
+          desc: `${lv.type === 'CUTI' ? 'Cuti tahunan' : lv.type === 'SAKIT' ? 'Sakit' : 'Izin'}, ${lv.workDays || 1} hari`,
+          status: lv.status === 'PENDING' ? 'PENDING' : 'APPROVED',
+          fromBackend: true,
+        }))
+        setApprovalList([...mapped, ...INITIAL_APPROVALS])
+      }
+    } catch {
+      // Fallback to initial showcase list
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchApprovals()
+  }, [fetchApprovals])
+
+  const handleAction = async (item, action) => {
+    if (item.fromBackend) {
+      try {
+        if (action === 'APPROVED') {
+          await api.patch(`/leaves/${item.id}/manager-approve`)
+        } else {
+          await api.patch(`/leaves/${item.id}/reject`, {
+            rejectionReason: 'Ditolak oleh Manager',
+          })
+        }
+      } catch (e) {
+        console.warn('Fallback update state lokal:', e)
+      }
+    }
+
     setApprovalList((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, status: action } : item))
+      prev.map((row) => (row.id === item.id ? { ...row, status: action } : row))
     )
-    showToast(`Pengajuan ${action === 'APPROVED' ? 'Disetujui' : 'Ditolak'} tahap Manager`)
+    showToast(`Pengajuan ${item.name} ${action === 'APPROVED' ? 'Disetujui' : 'Ditolak'} tahap Manager`)
   }
 
   const pendingCount = approvalList.filter((a) => a.status === 'PENDING').length
+  const managerName = currentUser?.name || 'Sari Utami'
 
   return (
     <div className="min-h-screen bg-[#f3f6fa] text-stone-900 font-sans antialiased flex">
@@ -54,11 +103,11 @@ export default function ManagerPortal({ currentUser, onLogout }) {
       )}
 
       {/* LEFT SIDEBAR: Page 6-8 Standard */}
-      <aside className="w-64 bg-white border-r border-stone-200 min-h-screen p-6 flex flex-col justify-between shrink-0">
+      <aside className="w-64 bg-white border-r border-stone-200 h-screen sticky top-0 p-6 flex flex-col justify-between shrink-0">
         <div>
           <h1 className="text-2xl font-black text-[#285a84] tracking-tight mb-0.5">Kerabat</h1>
           <p className="text-xs text-stone-500 font-medium mb-8">
-            {currentUser.name || 'Sari Utami'} · Manager
+            {managerName} · Manager
           </p>
 
           <nav className="flex flex-col gap-1.5">
@@ -99,15 +148,28 @@ export default function ManagerPortal({ currentUser, onLogout }) {
             >
               Tim saya
             </button>
+
+            <button
+              onClick={onLogout}
+              className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold text-stone-500 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer mt-2"
+            >
+              Keluar
+            </button>
           </nav>
         </div>
 
-        <button
-          onClick={onLogout}
-          className="text-left text-sm font-semibold text-stone-600 hover:text-rose-600 transition pt-6 border-t border-stone-100 cursor-pointer"
-        >
-          Keluar
-        </button>
+        <div className="pt-4 border-t border-stone-100 flex items-center justify-between">
+          <div>
+            <p className="text-[11px] text-stone-400">Masuk sebagai</p>
+            <p className="text-xs font-bold text-stone-800">{managerName}</p>
+          </div>
+          <button
+            onClick={onLogout}
+            className="px-3 py-1.5 rounded-lg border border-stone-200 hover:border-rose-200 hover:bg-rose-50 text-xs font-bold text-stone-600 hover:text-rose-600 transition cursor-pointer"
+          >
+            Keluar
+          </button>
+        </div>
       </aside>
 
       {/* RIGHT CONTENT AREA */}
@@ -120,7 +182,15 @@ export default function ManagerPortal({ currentUser, onLogout }) {
           <>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-stone-900">Tim Engineering</h2>
-              <span className="text-xs font-medium text-stone-500">Selasa, 20 Oktober 2026</span>
+              <div className="flex items-center gap-4">
+                <span className="text-xs font-medium text-stone-500">Selasa, 20 Oktober 2026</span>
+                <button
+                  onClick={onLogout}
+                  className="px-3.5 py-1.5 rounded-lg bg-white border border-stone-200 hover:border-rose-200 hover:bg-rose-50 text-xs font-bold text-stone-700 hover:text-rose-600 transition shadow-2xs cursor-pointer"
+                >
+                  Keluar
+                </button>
+              </div>
             </div>
 
             {/* 4 Stat Cards Row */}
@@ -233,6 +303,12 @@ export default function ManagerPortal({ currentUser, onLogout }) {
                 <h2 className="text-2xl font-bold text-stone-900">Persetujuan</h2>
                 <p className="text-xs text-stone-500 mt-1">Keputusan Anda diteruskan ke HR sebagai tahap akhir</p>
               </div>
+              <button
+                onClick={onLogout}
+                className="px-3.5 py-1.5 rounded-lg bg-white border border-stone-200 hover:border-rose-200 hover:bg-rose-50 text-xs font-bold text-stone-700 hover:text-rose-600 transition shadow-2xs cursor-pointer"
+              >
+                Keluar
+              </button>
             </div>
 
             <div className="bg-white rounded-2xl border border-stone-200 shadow-xs divide-y divide-stone-100">
@@ -252,13 +328,13 @@ export default function ManagerPortal({ currentUser, onLogout }) {
                     {item.status === 'PENDING' ? (
                       <>
                         <button
-                          onClick={() => handleAction(item.id, 'REJECTED')}
+                          onClick={() => handleAction(item, 'REJECTED')}
                           className="px-4 py-1.5 rounded-lg border border-[#e53e3e] text-[#e53e3e] hover:bg-red-50 text-xs font-bold transition cursor-pointer"
                         >
                           Tolak
                         </button>
                         <button
-                          onClick={() => handleAction(item.id, 'APPROVED')}
+                          onClick={() => handleAction(item, 'APPROVED')}
                           className="px-4 py-1.5 rounded-lg bg-[#1b7a43] hover:bg-[#156034] text-white text-xs font-bold transition shadow-xs cursor-pointer"
                         >
                           Setujui
@@ -286,8 +362,14 @@ export default function ManagerPortal({ currentUser, onLogout }) {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-stone-900">Tim saya</h2>
-                <p className="text-xs text-stone-500 mt-1">Sari Utami · Manager Engineering</p>
+                <p className="text-xs text-stone-500 mt-1">{managerName} · Manager Engineering</p>
               </div>
+              <button
+                onClick={onLogout}
+                className="px-3.5 py-1.5 rounded-lg bg-white border border-stone-200 hover:border-rose-200 hover:bg-rose-50 text-xs font-bold text-stone-700 hover:text-rose-600 transition shadow-2xs cursor-pointer"
+              >
+                Keluar
+              </button>
             </div>
 
             <div className="bg-white rounded-2xl border border-stone-200 shadow-xs overflow-hidden">
