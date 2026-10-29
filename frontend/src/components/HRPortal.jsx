@@ -1,14 +1,90 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import api from '../lib/api'
+
+const INITIAL_EMPLOYEES = [
+  { id: 'emp-1', init: 'BP', name: 'Bima Pratama', email: 'bima@kerabat.id', role: 'Backend Developer', dept: 'Engineering', status: 'Tetap', bg: 'bg-[#0f3832]' },
+  { id: 'emp-2', init: 'DL', name: 'Dewi Lestari', email: 'dewi@kerabat.id', role: 'UI Designer', dept: 'Engineering', status: 'Kontrak', bg: 'bg-[#285a84]' },
+  { id: 'emp-3', init: 'KS', name: 'Kevin Santoso', email: 'kevin@kerabat.id', role: 'QA Engineer', dept: 'Engineering', status: 'Probation', bg: 'bg-[#c57b1b]' },
+  { id: 'emp-4', init: 'AS', name: 'Agus Salim', email: 'agus@kerabat.id', role: 'Payroll Specialist', dept: 'HR', status: 'Tetap', bg: 'bg-[#7c3aed]' },
+  { id: 'emp-5', init: 'MP', name: 'Maya Putri', email: 'maya@kerabat.id', role: 'Recruiter', dept: 'HR', status: 'Kontrak', bg: 'bg-[#d94826]' },
+]
+
+const AVATAR_COLORS = [
+  'bg-[#0f3832]',
+  'bg-[#285a84]',
+  'bg-[#c57b1b]',
+  'bg-[#7c3aed]',
+  'bg-[#d94826]',
+  'bg-[#1b7a43]',
+]
+
+function getInitials(name) {
+  if (!name) return 'KR'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+function formatStatusLabel(status) {
+  if (!status) return 'Probation'
+  const upper = status.toUpperCase()
+  if (upper === 'TETAP') return 'Tetap'
+  if (upper === 'KONTRAK') return 'Kontrak'
+  if (upper === 'PROBATION') return 'Probation'
+  return status
+}
+
+function getStatusBadgeStyle(statusLabel) {
+  if (statusLabel === 'Tetap') return 'bg-[#e8f7ee] text-[#1b7a43]'
+  if (statusLabel === 'Kontrak') return 'bg-[#ebf3fb] text-[#285a84]'
+  return 'bg-[#fef3eb] text-[#b86d1a]'
+}
 
 export default function HRPortal({ currentUser, onLogout }) {
   const [activeTab, setActiveTab] = useState('beranda') // 'beranda' | 'karyawan' | 'absensi' | 'cuti' | 'payroll'
   const [toast, setToast] = useState(null)
+  const [currentTime, setCurrentTime] = useState('07:18:16')
 
-  const showToast = (msg) => {
-    setToast(msg)
-    setTimeout(() => setToast(null), 3000)
-  }
+  // Employees & Search State
+  const [employees, setEmployees] = useState(INITIAL_EMPLOYEES)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [departments, setDepartments] = useState([])
+  const [positions, setPositions] = useState([])
 
+  // Modal Tambah Karyawan State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [submittingEmployee, setSubmittingEmployee] = useState(false)
+  const [addError, setAddError] = useState('')
+  const [newEmp, setNewEmp] = useState({
+    name: '',
+    email: '',
+    password: 'kerabat123',
+    nik: '',
+    positionName: 'Frontend Developer',
+    departmentName: 'Engineering',
+    status: 'TETAP',
+    role: 'EMPLOYEE',
+    baseSalary: 10000000,
+    allowance: 2000000,
+  })
+
+  // Absensi HR State (Page 11)
+  const [simulatedDistance, setSimulatedDistance] = useState(40)
+  const [clockedIn, setClockedIn] = useState(false)
+  const [clockedOut, setClockedOut] = useState(false)
+
+  // Cuti HR State (Page 12)
+  const [leaveForm, setLeaveForm] = useState({
+    type: 'Cuti tahunan',
+    dateRange: '3 sampai 5 November 2026',
+    reason: '',
+  })
+  const [myLeaves, setMyLeaves] = useState([
+    { id: 1, type: 'Cuti tahunan', dates: '22 sampai 24 Okt', status: 'Disetujui' },
+    { id: 2, type: 'Izin', dates: '9 Okt', status: 'Disetujui' },
+  ])
+
+  // Payroll State (Page 13)
   const [selectedEmployee, setSelectedEmployee] = useState({
     name: 'Bima Pratama',
     role: 'Backend Developer',
@@ -22,12 +98,373 @@ export default function HRPortal({ currentUser, onLogout }) {
     diterima: 'Rp 13.815.532',
   })
 
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 3500)
+  }
+
+  // Real-time Clock
+  useEffect(() => {
+    const updateClock = () => {
+      const now = new Date()
+      setCurrentTime(
+        now.toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        }).replace(/\./g, ':')
+      )
+    }
+    updateClock()
+    const timer = setInterval(updateClock, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Fetch Employees, Departments, Positions from Backend
+  const fetchBackendEmployees = useCallback(async () => {
+    try {
+      const [empRes, deptRes, posRes] = await Promise.allSettled([
+        api.get('/employees'),
+        api.get('/departments'),
+        api.get('/positions'),
+      ])
+
+      if (deptRes.status === 'fulfilled' && Array.isArray(deptRes.value.data)) {
+        setDepartments(deptRes.value.data)
+      }
+      if (posRes.status === 'fulfilled' && Array.isArray(posRes.value.data)) {
+        setPositions(posRes.value.data)
+      }
+
+      if (empRes.status === 'fulfilled' && Array.isArray(empRes.value.data) && empRes.value.data.length > 0) {
+        const mappedFromDb = empRes.value.data.map((emp, idx) => ({
+          id: emp.id,
+          init: getInitials(emp.user?.name),
+          name: emp.user?.name || 'Karyawan',
+          email: emp.user?.email || '',
+          role: emp.position?.name || (emp.user?.role === 'HR' ? 'HR Specialist' : emp.user?.role === 'MANAGER' ? 'Manager' : 'Staff'),
+          dept: emp.department?.name || 'Engineering',
+          status: formatStatusLabel(emp.status),
+          bg: AVATAR_COLORS[idx % AVATAR_COLORS.length],
+        }))
+
+        // Merge with showcase employees avoiding duplicate emails/names
+        const existingNames = new Set(mappedFromDb.map((e) => e.name.toLowerCase()))
+        const combined = [
+          ...mappedFromDb,
+          ...INITIAL_EMPLOYEES.filter((e) => !existingNames.has(e.name.toLowerCase())),
+        ]
+        setEmployees(combined)
+      }
+    } catch (err) {
+      console.warn('Menggunakan daftar karyawan lokal:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchBackendEmployees()
+  }, [fetchBackendEmployees])
+
+  // Handle Tambah Karyawan Submit
+  const handleAddEmployeeSubmit = async (e) => {
+    e.preventDefault()
+    setAddError('')
+
+    if (!newEmp.name.trim()) {
+      setAddError('Nama lengkap karyawan wajib diisi.')
+      return
+    }
+    if (!newEmp.email.trim()) {
+      setAddError('Email kerja wajib diisi.')
+      return
+    }
+    if (!newEmp.password || newEmp.password.length < 6) {
+      setAddError('Kata sandi minimal 6 karakter.')
+      return
+    }
+
+    setSubmittingEmployee(true)
+
+    try {
+      // Find matching departmentId & positionId if available in DB
+      const matchedDept = departments.find(
+        (d) => d.name.toLowerCase() === newEmp.departmentName.toLowerCase()
+      )
+      const matchedPos = positions.find(
+        (p) => p.name.toLowerCase() === newEmp.positionName.toLowerCase()
+      )
+
+      const payload = {
+        name: newEmp.name.trim(),
+        email: newEmp.email.trim().toLowerCase(),
+        password: newEmp.password,
+        role: newEmp.role,
+        status: newEmp.status,
+        ...(newEmp.nik.trim() ? { nik: newEmp.nik.trim() } : {}),
+        ...(matchedDept ? { departmentId: matchedDept.id } : {}),
+        ...(matchedPos ? { positionId: matchedPos.id } : {}),
+        baseSalary: Number(newEmp.baseSalary) || 10000000,
+        allowance: Number(newEmp.allowance) || 2000000,
+      }
+
+      const res = await api.post('/employees', payload)
+      const createdEmp = res.data
+
+      const addedItem = {
+        id: createdEmp?.id || `emp-${Date.now()}`,
+        init: getInitials(newEmp.name),
+        name: newEmp.name.trim(),
+        email: newEmp.email.trim().toLowerCase(),
+        role: newEmp.positionName.trim() || 'Staff',
+        dept: newEmp.departmentName,
+        status: formatStatusLabel(newEmp.status),
+        bg: AVATAR_COLORS[employees.length % AVATAR_COLORS.length],
+      }
+
+      setEmployees((prev) => [addedItem, ...prev])
+      setIsAddModalOpen(false)
+      setNewEmp({
+        name: '',
+        email: '',
+        password: 'kerabat123',
+        nik: '',
+        positionName: 'Frontend Developer',
+        departmentName: 'Engineering',
+        status: 'TETAP',
+        role: 'EMPLOYEE',
+        baseSalary: 10000000,
+        allowance: 2000000,
+      })
+      showToast(`Karyawan ${addedItem.name} berhasil ditambahkan ke database!`)
+    } catch (err) {
+      const backendMsg = err.response?.data?.message
+      // If backend is unreachable or offline demo mode, still add to UI state unless it's a validation conflict
+      if (err.response && (err.response.status === 409 || err.response.status === 400)) {
+        setAddError(Array.isArray(backendMsg) ? backendMsg.join(', ') : backendMsg || 'Gagal menyimpan data karyawan.')
+      } else {
+        const fallbackItem = {
+          id: `emp-${Date.now()}`,
+          init: getInitials(newEmp.name),
+          name: newEmp.name.trim(),
+          email: newEmp.email.trim().toLowerCase(),
+          role: newEmp.positionName.trim() || 'Staff',
+          dept: newEmp.departmentName,
+          status: formatStatusLabel(newEmp.status),
+          bg: AVATAR_COLORS[employees.length % AVATAR_COLORS.length],
+        }
+        setEmployees((prev) => [fallbackItem, ...prev])
+        setIsAddModalOpen(false)
+        showToast(`Karyawan ${fallbackItem.name} berhasil ditambahkan!`)
+      }
+    } finally {
+      setSubmittingEmployee(false)
+    }
+  }
+
+  const filteredEmployees = employees.filter((emp) => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return true
+    return (
+      emp.name.toLowerCase().includes(q) ||
+      emp.dept.toLowerCase().includes(q) ||
+      emp.role.toLowerCase().includes(q) ||
+      (emp.email && emp.email.toLowerCase().includes(q))
+    )
+  })
+
+  const isWithinGeofence = simulatedDistance <= 50
+
   return (
-    <div className="min-h-screen bg-[#f3f6fa] text-stone-900 font-sans antialiased flex">
-      {/* Toast */}
+    <div className="min-h-screen bg-[#f5f6f2] text-stone-900 font-sans antialiased flex">
+      {/* Toast Notification */}
       {toast && (
-        <div className="fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-xl bg-[#1b7a43] text-white text-sm font-semibold shadow-lg">
-          {toast}
+        <div
+          className={`fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-xl text-white text-sm font-semibold shadow-lg transition-all ${
+            toast.type === 'error' ? 'bg-rose-600' : 'bg-[#1b7a43]'
+          }`}
+        >
+          {toast.msg}
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* MODAL TAMBAH KARYAWAN BARU */}
+      {/* =================================================================== */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="px-6 py-4 bg-[#0f3832] text-white flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold">Tambah Karyawan Baru</h3>
+                <p className="text-[11px] text-stone-300 mt-0.5">
+                  Buat akun login dan profil kepegawaian secara langsung
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="text-stone-300 hover:text-white text-lg font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddEmployeeSubmit} className="p-6 space-y-4 text-xs max-h-[82vh] overflow-y-auto">
+              {addError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 font-medium">
+                  ⚠️ {addError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="font-bold text-stone-700 block mb-1">Nama lengkap *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: Raka Pratama"
+                    value={newEmp.name}
+                    onChange={(e) => setNewEmp({ ...newEmp, name: e.target.value })}
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-stone-700 block mb-1">NIK / ID Karyawan</label>
+                  <input
+                    type="text"
+                    placeholder="KRB-0148"
+                    value={newEmp.nik}
+                    onChange={(e) => setNewEmp({ ...newEmp, nik: e.target.value })}
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="font-bold text-stone-700 block mb-1">Email kerja *</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="raka@kerabat.id"
+                    value={newEmp.email}
+                    onChange={(e) => setNewEmp({ ...newEmp, email: e.target.value })}
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-stone-700 block mb-1">Password awal *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newEmp.password}
+                    onChange={(e) => setNewEmp({ ...newEmp, password: e.target.value })}
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="font-bold text-stone-700 block mb-1">Jabatan / Posisi *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Frontend Developer"
+                    value={newEmp.positionName}
+                    onChange={(e) => setNewEmp({ ...newEmp, positionName: e.target.value })}
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-stone-700 block mb-1">Departemen *</label>
+                  <select
+                    value={newEmp.departmentName}
+                    onChange={(e) => setNewEmp({ ...newEmp, departmentName: e.target.value })}
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
+                  >
+                    <option value="Engineering">Engineering</option>
+                    <option value="HR">HR</option>
+                    <option value="Operasional">Operasional</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Product">Product</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="font-bold text-stone-700 block mb-1">Status Kontrak</label>
+                  <select
+                    value={newEmp.status}
+                    onChange={(e) => setNewEmp({ ...newEmp, status: e.target.value })}
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
+                  >
+                    <option value="TETAP">Tetap</option>
+                    <option value="KONTRAK">Kontrak</option>
+                    <option value="PROBATION">Probation</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-stone-700 block mb-1">Role Akses Sistem</label>
+                  <select
+                    value={newEmp.role}
+                    onChange={(e) => setNewEmp({ ...newEmp, role: e.target.value })}
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
+                  >
+                    <option value="EMPLOYEE">Employee (Karyawan)</option>
+                    <option value="MANAGER">Manager</option>
+                    <option value="HR">HR</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="font-bold text-stone-700 block mb-1">Gaji Pokok (Rp)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newEmp.baseSalary}
+                    onChange={(e) => setNewEmp({ ...newEmp, baseSalary: e.target.value })}
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-stone-700 block mb-1">Tunjangan Tetap (Rp)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newEmp.allowance}
+                    onChange={(e) => setNewEmp({ ...newEmp, allowance: e.target.value })}
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-stone-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-50 font-bold cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingEmployee}
+                  className="px-5 py-2.5 rounded-xl bg-[#0f3832] hover:bg-[#144941] text-white font-bold shadow-xs transition cursor-pointer"
+                >
+                  {submittingEmployee ? 'Menyimpan...' : 'Simpan Karyawan'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
@@ -36,72 +473,77 @@ export default function HRPortal({ currentUser, onLogout }) {
         <div>
           {/* Logo & System Name */}
           <div className="flex items-start gap-3 mb-8">
-            <div className="w-6 h-6 rounded-md bg-[#f59e0b] mt-0.5 shrink-0" />
-            <h1 className="text-sm font-bold leading-tight tracking-wide">
+            <div className="w-4 h-7 rounded-full bg-[#eab04c] mt-1 shrink-0" />
+            <h1 className="text-base font-extrabold leading-snug tracking-tight">
               Human<br />Resource<br />Information<br />System
             </h1>
           </div>
 
           {/* Navigation Links */}
-          <nav className="flex flex-col gap-1.5 text-sm">
+          <nav className="flex flex-col gap-1.5 text-xs">
             <button
               onClick={() => setActiveTab('beranda')}
-              className={`w-full text-left px-4 py-2.5 rounded-xl font-bold transition cursor-pointer flex items-center gap-3 ${
+              className={`w-full text-left px-4 py-3 rounded-xl font-bold transition cursor-pointer flex items-center gap-3 ${
                 activeTab === 'beranda'
-                  ? 'bg-[#f59e0b] text-[#0f3832] shadow-xs'
+                  ? 'bg-[#eab04c] text-[#0f3832] shadow-xs'
                   : 'text-stone-300 hover:bg-white/10'
               }`}
             >
+              <span>⊞</span>
               <span>Beranda</span>
             </button>
 
             <button
               onClick={() => setActiveTab('karyawan')}
-              className={`w-full text-left px-4 py-2.5 rounded-xl font-semibold transition cursor-pointer flex items-center gap-3 ${
+              className={`w-full text-left px-4 py-3 rounded-xl font-semibold transition cursor-pointer flex items-center gap-3 ${
                 activeTab === 'karyawan'
-                  ? 'bg-[#f59e0b] text-[#0f3832] font-bold shadow-xs'
+                  ? 'bg-[#eab04c] text-[#0f3832] font-bold shadow-xs'
                   : 'text-stone-300 hover:bg-white/10'
               }`}
             >
+              <span>👥</span>
               <span>Karyawan</span>
             </button>
 
             <button
               onClick={() => setActiveTab('absensi')}
-              className={`w-full text-left px-4 py-2.5 rounded-xl font-semibold transition cursor-pointer flex items-center gap-3 ${
+              className={`w-full text-left px-4 py-3 rounded-xl font-semibold transition cursor-pointer flex items-center gap-3 ${
                 activeTab === 'absensi'
-                  ? 'bg-[#f59e0b] text-[#0f3832] font-bold shadow-xs'
+                  ? 'bg-[#eab04c] text-[#0f3832] font-bold shadow-xs'
                   : 'text-stone-300 hover:bg-white/10'
               }`}
             >
+              <span>📍</span>
               <span>Absensi</span>
             </button>
 
             <button
               onClick={() => setActiveTab('cuti')}
-              className={`w-full text-left px-4 py-2.5 rounded-xl font-semibold transition cursor-pointer flex items-center gap-3 ${
+              className={`w-full text-left px-4 py-3 rounded-xl font-semibold transition cursor-pointer flex items-center gap-3 ${
                 activeTab === 'cuti'
-                  ? 'bg-[#f59e0b] text-[#0f3832] font-bold shadow-xs'
+                  ? 'bg-[#eab04c] text-[#0f3832] font-bold shadow-xs'
                   : 'text-stone-300 hover:bg-white/10'
               }`}
             >
+              <span>📅</span>
               <span>Cuti</span>
             </button>
 
             <button
               onClick={() => setActiveTab('payroll')}
-              className={`w-full text-left px-4 py-2.5 rounded-xl font-semibold transition cursor-pointer flex items-center gap-3 ${
+              className={`w-full text-left px-4 py-3 rounded-xl font-semibold transition cursor-pointer flex items-center gap-3 ${
                 activeTab === 'payroll'
-                  ? 'bg-[#f59e0b] text-[#0f3832] font-bold shadow-xs'
+                  ? 'bg-[#eab04c] text-[#0f3832] font-bold shadow-xs'
                   : 'text-stone-300 hover:bg-white/10'
               }`}
             >
+              <span>💳</span>
               <span>Payroll</span>
             </button>
 
             <button
               onClick={onLogout}
-              className="w-full text-left px-4 py-2.5 rounded-xl font-semibold text-stone-400 hover:text-rose-400 transition cursor-pointer mt-4"
+              className="w-full text-left px-4 py-3 rounded-xl font-semibold text-stone-300 hover:text-rose-300 transition cursor-pointer mt-2"
             >
               Keluar
             </button>
@@ -109,7 +551,7 @@ export default function HRPortal({ currentUser, onLogout }) {
         </div>
 
         {/* User Info Bottom */}
-        <div className="pt-6 border-t border-white/10">
+        <div className="p-3.5 rounded-xl bg-white/5 border border-white/10">
           <p className="text-[11px] text-stone-400">Masuk sebagai</p>
           <p className="text-xs font-bold text-white mt-0.5">
             {currentUser.name || 'Rina Kusuma'} · HR
@@ -134,10 +576,10 @@ export default function HRPortal({ currentUser, onLogout }) {
               </div>
 
               <div className="flex flex-col items-end gap-2.5">
-                <div className="text-4xl md:text-5xl font-black tracking-tight">07:18:16</div>
+                <div className="text-4xl md:text-5xl font-black tracking-tight">{currentTime}</div>
                 <button
-                  onClick={() => showToast('Presensi Anda tercatat sebagai Hadir Tepat Waktu')}
-                  className="bg-[#f59e0b] hover:bg-[#e08e08] text-[#0f3832] font-bold px-5 py-2.5 rounded-xl text-xs transition cursor-pointer shadow-xs"
+                  onClick={() => setActiveTab('absensi')}
+                  className="bg-[#eab04c] hover:bg-[#dfa038] text-[#0f3832] font-bold px-5 py-2.5 rounded-xl text-xs transition cursor-pointer shadow-xs"
                 >
                   Absen sekarang
                 </button>
@@ -148,12 +590,12 @@ export default function HRPortal({ currentUser, onLogout }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-[#14473f] text-white rounded-2xl p-5 shadow-xs flex flex-col justify-between">
                 <div>
-                  <div className="text-3xl font-extrabold mb-1">142</div>
+                  <div className="text-3xl font-extrabold mb-1">{137 + employees.length}</div>
                   <div className="text-xs text-stone-200">Karyawan aktif</div>
                 </div>
                 <div className="mt-3">
                   <span className="bg-white/20 text-white px-2 py-0.5 rounded-md text-[11px] font-semibold">
-                    +3 bulan ini
+                    +{employees.length - 2} bulan ini
                   </span>
                 </div>
               </div>
@@ -197,7 +639,6 @@ export default function HRPortal({ currentUser, onLogout }) {
 
             {/* Row 2: Kehadiran Bar Chart & Menunggu Persetujuan */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Bar Chart (col-span-2) */}
               <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-stone-200 shadow-xs">
                 <h3 className="text-sm font-bold text-stone-900 mb-6">Kehadiran minggu ini</h3>
                 <div className="flex items-end justify-between gap-4 h-44 px-4 pb-2">
@@ -206,7 +647,7 @@ export default function HRPortal({ currentUser, onLogout }) {
                     { day: 'Sel', percent: '93%', h: 'h-32', bg: 'bg-[#1e584f]' },
                     { day: 'Rab', percent: '97%', h: 'h-40', bg: 'bg-[#1e584f]' },
                     { day: 'Kam', percent: '91%', h: 'h-28', bg: 'bg-[#1e584f]' },
-                    { day: 'Jum', percent: '92%', h: 'h-30', bg: 'bg-[#f59e0b]' },
+                    { day: 'Jum', percent: '92%', h: 'h-30', bg: 'bg-[#eab04c]' },
                   ].map((bar, i) => (
                     <div key={i} className="flex-1 flex flex-col items-center gap-2">
                       <span className="text-[11px] text-stone-500 font-medium">{bar.percent}</span>
@@ -217,7 +658,6 @@ export default function HRPortal({ currentUser, onLogout }) {
                 </div>
               </div>
 
-              {/* Menunggu Persetujuan */}
               <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-xs">
                 <h3 className="text-sm font-bold text-stone-900 mb-4">Menunggu persetujuan</h3>
                 <div className="space-y-4">
@@ -236,7 +676,7 @@ export default function HRPortal({ currentUser, onLogout }) {
                       <div className="text-sm font-bold text-stone-900">Dewi Lestari</div>
                       <div className="text-xs text-stone-500 mt-0.5">Cuti tahunan, 3 hari</div>
                     </div>
-                    <span className="px-2.5 py-0.5 rounded-full font-semibold text-[11px] bg-[#ebf3fb] text-[#285a84]">
+                    <span className="px-2.5 py-0.5 rounded-full font-semibold text-[11px] bg-[#fef3eb] text-[#b86d1a]">
                       Tahap HR
                     </span>
                   </div>
@@ -256,7 +696,6 @@ export default function HRPortal({ currentUser, onLogout }) {
 
             {/* Row 3: Komposisi Karyawan & Pengumuman */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Komposisi Donut Chart */}
               <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-xs flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-bold text-stone-900 mb-4">Komposisi karyawan</h3>
@@ -266,7 +705,7 @@ export default function HRPortal({ currentUser, onLogout }) {
                       <span className="text-stone-700">Tetap, 91 orang</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-[#f59e0b]" />
+                      <div className="w-3 h-3 rounded-full bg-[#eab04c]" />
                       <span className="text-stone-700">Kontrak, 37 orang</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -276,12 +715,11 @@ export default function HRPortal({ currentUser, onLogout }) {
                   </div>
                 </div>
 
-                <div className="w-32 h-32 rounded-full border-[14px] border-[#133d36] border-t-[#f59e0b] border-r-[#285a84] flex items-center justify-center">
-                  <span className="text-2xl font-black text-stone-900">142</span>
+                <div className="w-32 h-32 rounded-full border-[14px] border-[#133d36] border-t-[#eab04c] border-r-[#285a84] flex items-center justify-center">
+                  <span className="text-2xl font-black text-stone-900">{137 + employees.length}</span>
                 </div>
               </div>
 
-              {/* Pengumuman */}
               <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-xs">
                 <h3 className="text-sm font-bold text-stone-900 mb-4">Pengumuman</h3>
                 <div className="space-y-3.5 text-xs">
@@ -332,10 +770,13 @@ export default function HRPortal({ currentUser, onLogout }) {
               </div>
 
               <button
-                onClick={() => showToast('Form wizard onboarding karyawan baru dibuka')}
+                onClick={() => {
+                  setAddError('')
+                  setIsAddModalOpen(true)
+                }}
                 className="bg-[#0f3832] hover:bg-[#134941] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
               >
-                + Tambah karyawan
+                Tambah karyawan
               </button>
             </div>
 
@@ -345,13 +786,15 @@ export default function HRPortal({ currentUser, onLogout }) {
                 <div className="p-4 border-b border-stone-100">
                   <input
                     type="text"
-                    placeholder="Cari nama atau departemen..."
-                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-xs text-stone-800 outline-none"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Cari nama atau departemen"
+                    className="w-full bg-[#f4f3ef] border border-stone-200 rounded-xl px-4 py-2.5 text-xs text-stone-800 outline-none focus:border-[#0f3832]"
                   />
                 </div>
 
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-stone-50 text-stone-500 font-semibold uppercase tracking-wider text-[11px] border-b border-stone-200">
+                  <thead className="text-stone-500 font-semibold text-[11px] border-b border-stone-100">
                     <tr>
                       <th className="py-3 px-4">Nama</th>
                       <th className="py-3 px-4">Jabatan</th>
@@ -360,25 +803,30 @@ export default function HRPortal({ currentUser, onLogout }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100">
-                    {[
-                      { init: 'BP', name: 'Bima Pratama', role: 'Backend Developer', dept: 'Engineering', status: 'Tetap', bg: 'bg-[#1a365d]' },
-                      { init: 'DL', name: 'Dewi Lestari', role: 'UI Designer', dept: 'Engineering', status: 'Kontrak', bg: 'bg-[#2b6cb0]' },
-                      { init: 'KS', name: 'Kevin Santoso', role: 'QA Engineer', dept: 'Engineering', status: 'Probation', bg: 'bg-[#b86d1a]' },
-                      { init: 'AS', name: 'Agus Salim', role: 'Payroll Specialist', dept: 'HR', status: 'Tetap', bg: 'bg-[#14473f]' },
-                      { init: 'MP', name: 'Maya Putri', role: 'Recruiter', dept: 'HR', status: 'Kontrak', bg: 'bg-[#7c3aed]' },
-                    ].map((row, idx) => (
-                      <tr key={idx} className="hover:bg-stone-50/50 transition">
-                        <td className="py-3 px-4 flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full ${row.bg} text-white font-bold flex items-center justify-center text-xs`}>
+                    {filteredEmployees.map((row) => (
+                      <tr key={row.id} className="hover:bg-stone-50/60 transition">
+                        <td className="py-3.5 px-4 flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full ${row.bg} text-white font-bold flex items-center justify-center text-xs shrink-0`}>
                             {row.init}
                           </div>
                           <span className="font-bold text-stone-900">{row.name}</span>
                         </td>
-                        <td className="py-3 px-4 text-stone-600">{row.role}</td>
-                        <td className="py-3 px-4 text-stone-600">{row.dept}</td>
-                        <td className="py-3 px-4 font-semibold text-stone-800">{row.status}</td>
+                        <td className="py-3.5 px-4 text-stone-600">{row.role}</td>
+                        <td className="py-3.5 px-4 text-stone-600">{row.dept}</td>
+                        <td className="py-3.5 px-4">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${getStatusBadgeStyle(row.status)}`}>
+                            {row.status}
+                          </span>
+                        </td>
                       </tr>
                     ))}
+                    {filteredEmployees.length === 0 && (
+                      <tr>
+                        <td colSpan="4" className="py-8 text-center text-stone-400">
+                          Tidak ada karyawan yang cocok dengan pencarian &ldquo;{searchQuery}&rdquo;
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -386,29 +834,34 @@ export default function HRPortal({ currentUser, onLogout }) {
               {/* Struktur Organisasi Tree */}
               <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-xs">
                 <h3 className="text-sm font-bold text-stone-900 mb-4">Struktur organisasi</h3>
-                <div className="space-y-4 text-xs">
+                <div className="space-y-4 text-xs border-l border-stone-200 pl-4">
                   <div>
                     <div className="font-bold text-stone-900">Hendra Wijaya</div>
                     <div className="text-[11px] text-stone-500">Direktur Operasional</div>
                   </div>
 
-                  <div className="pl-4 border-l-2 border-stone-200 space-y-3">
+                  <div className="pl-3 border-l border-stone-200 space-y-4">
                     <div>
-                      <div className="font-bold text-[#285a84]">Sari Utami</div>
+                      <div className="font-bold text-stone-900">Sari Utami</div>
                       <div className="text-[11px] text-stone-500">Manager Engineering</div>
-                      <div className="pl-3 mt-1.5 space-y-1 text-stone-600 text-[11px]">
-                        <div>• Bima Pratama</div>
-                        <div>• Dewi Lestari</div>
-                        <div>• Kevin Santoso</div>
+                      <div className="pl-3 mt-2 border-l border-stone-200 space-y-1.5 text-stone-700 text-[11px]">
+                        {employees
+                          .filter((e) => e.dept === 'Engineering')
+                          .map((e) => (
+                            <div key={e.id}>{e.name}</div>
+                          ))}
                       </div>
                     </div>
 
                     <div>
-                      <div className="font-bold text-[#0f3832]">Rina Kusuma</div>
+                      <div className="font-bold text-stone-900">Rina Kusuma</div>
                       <div className="text-[11px] text-stone-500">Kepala HR</div>
-                      <div className="pl-3 mt-1.5 space-y-1 text-stone-600 text-[11px]">
-                        <div>• Agus Salim</div>
-                        <div>• Maya Putri</div>
+                      <div className="pl-3 mt-2 border-l border-stone-200 space-y-1.5 text-stone-700 text-[11px]">
+                        {employees
+                          .filter((e) => e.dept !== 'Engineering')
+                          .map((e) => (
+                            <div key={e.id}>{e.name}</div>
+                          ))}
                       </div>
                     </div>
                   </div>
@@ -419,7 +872,264 @@ export default function HRPortal({ currentUser, onLogout }) {
         )}
 
         {/* =================================================================== */}
-        {/* TAB 3: PAYROLL (Page 13 desain_UI.pdf) */}
+        {/* TAB 3: ABSENSI (Page 11 desain_UI.pdf) */}
+        {/* =================================================================== */}
+        {activeTab === 'absensi' && (
+          <div>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-stone-900">Absensi</h2>
+              <p className="text-xs text-stone-500 mt-1">
+                Clock in dan clock out hanya bisa dilakukan dalam radius kantor
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Card: Radar & Clock In/Out */}
+              <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs">
+                <div className="text-4xl font-black text-stone-900 tracking-tight mb-2">
+                  {currentTime}
+                </div>
+
+                <div className="flex items-center gap-2 mb-4 text-xs">
+                  <span className="text-stone-600">
+                    Jarak dari kantor: <strong className="text-stone-900">{simulatedDistance} m</strong>
+                  </span>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
+                      isWithinGeofence
+                        ? 'bg-[#e8f7ee] text-[#1b7a43]'
+                        : 'bg-rose-100 text-rose-700'
+                    }`}
+                  >
+                    {isWithinGeofence ? 'Dalam radius' : 'Luar radius'}
+                  </span>
+                </div>
+
+                {/* Grid Map Container */}
+                <div className="bg-[#f3f5f0] border border-stone-200 rounded-2xl h-64 flex items-center justify-center relative mb-4 overflow-hidden">
+                  <div className="w-48 h-48 rounded-full bg-[#d8e6de] flex flex-col items-center justify-center relative">
+                    <div className="w-7 h-7 rounded-lg bg-[#0f3832] shadow-xs mb-1" />
+                    <span className="text-[11px] font-semibold text-stone-700">Kantor Pusat</span>
+
+                    {/* User Orange Dot */}
+                    <div
+                      className="absolute w-4 h-4 rounded-full bg-[#eab04c] border-2 border-white shadow-sm transition-all"
+                      style={{
+                        top: `${Math.max(15, Math.min(80, 48 - simulatedDistance * 0.4))}%`,
+                        right: `${Math.max(15, Math.min(80, 38 - simulatedDistance * 0.3))}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="text-xs font-bold text-stone-800 mb-2">
+                  Geser untuk mensimulasikan posisi Anda
+                </div>
+                <input
+                  type="range"
+                  min="5"
+                  max="120"
+                  value={simulatedDistance}
+                  onChange={(e) => setSimulatedDistance(Number(e.target.value))}
+                  className="w-full accent-[#1d64d8] cursor-pointer mb-5"
+                />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => {
+                      if (!isWithinGeofence) {
+                        showToast('Gagal: Anda berada di luar radius kantor!', 'error')
+                        return
+                      }
+                      setClockedIn(true)
+                      showToast('Clock in berhasil dicatat!')
+                    }}
+                    disabled={clockedIn}
+                    className={`py-3 rounded-xl font-bold text-xs transition cursor-pointer ${
+                      clockedIn
+                        ? 'bg-stone-200 text-stone-500 cursor-not-allowed'
+                        : 'bg-[#0f3832] hover:bg-[#14473f] text-white'
+                    }`}
+                  >
+                    {clockedIn ? 'Sudah Clock in' : 'Clock in'}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setClockedOut(true)
+                      showToast('Clock out berhasil dicatat!')
+                    }}
+                    disabled={!clockedIn || clockedOut}
+                    className="py-3 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-50 font-bold text-xs transition cursor-pointer disabled:opacity-50"
+                  >
+                    {clockedOut ? 'Sudah Clock out' : 'Clock out'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Card: Riwayat Absensi */}
+              <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs flex flex-col justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-stone-900 mb-4">Riwayat absensi</h3>
+                  <div className="divide-y divide-stone-100 text-xs">
+                    <div className="py-3.5 flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-stone-900">Kamis, 15 Okt</div>
+                        <div className="text-stone-500 mt-0.5">Masuk 08:02 · Pulang 17:10</div>
+                      </div>
+                      <span className="px-2.5 py-0.5 rounded-full font-semibold text-[11px] bg-[#e8f7ee] text-[#1b7a43]">
+                        Tepat waktu
+                      </span>
+                    </div>
+
+                    <div className="py-3.5 flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-stone-900">Rabu, 14 Okt</div>
+                        <div className="text-stone-500 mt-0.5">Masuk 08:21 · Pulang 17:05</div>
+                      </div>
+                      <span className="px-2.5 py-0.5 rounded-full font-semibold text-[11px] bg-[#fef3eb] text-[#b86d1a]">
+                        Terlambat
+                      </span>
+                    </div>
+
+                    <div className="py-3.5 flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-stone-900">Selasa, 13 Okt</div>
+                        <div className="text-stone-500 mt-0.5">Masuk 07:55 · Pulang 17:30</div>
+                      </div>
+                      <span className="px-2.5 py-0.5 rounded-full font-semibold text-[11px] bg-[#e8f7ee] text-[#1b7a43]">
+                        Tepat waktu
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pt-6 border-t border-stone-100 mt-4">
+                  <div>
+                    <div className="text-2xl font-black text-stone-900">168 jam</div>
+                    <div className="text-xs text-stone-500 mt-0.5">Total jam kerja bulan ini</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-black text-stone-900">2 kali</div>
+                    <div className="text-xs text-stone-500 mt-0.5">Terlambat bulan ini</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* =================================================================== */}
+        {/* TAB 4: CUTI DAN IZIN (Page 12 desain_UI.pdf) */}
+        {/* =================================================================== */}
+        {activeTab === 'cuti' && (
+          <div>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-stone-900">Cuti dan izin</h2>
+              <p className="text-xs text-stone-500 mt-1">
+                Persetujuan berjenjang: Manager, lalu HR
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Card: Ajukan Cuti */}
+              <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs">
+                <h3 className="text-sm font-bold text-stone-900 mb-4">Ajukan cuti</h3>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    setMyLeaves((prev) => [
+                      {
+                        id: Date.now(),
+                        type: leaveForm.type,
+                        dates: leaveForm.dateRange || '3 sampai 5 Nov',
+                        status: 'Disetujui',
+                      },
+                      ...prev,
+                    ])
+                    setLeaveForm({ ...leaveForm, reason: '' })
+                    showToast('Pengajuan cuti berhasil dikirim!')
+                  }}
+                  className="space-y-4 text-xs"
+                >
+                  <div>
+                    <label className="font-bold text-stone-700 block mb-1.5">Jenis</label>
+                    <select
+                      value={leaveForm.type}
+                      onChange={(e) => setLeaveForm({ ...leaveForm, type: e.target.value })}
+                      className="w-full bg-[#f4f3ef] border border-stone-200 rounded-xl px-4 py-3 text-stone-800 outline-none"
+                    >
+                      <option value="Cuti tahunan">Cuti tahunan</option>
+                      <option value="Sakit">Sakit</option>
+                      <option value="Izin">Izin</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-stone-700 block mb-1.5">Tanggal</label>
+                    <input
+                      type="text"
+                      value={leaveForm.dateRange}
+                      onChange={(e) => setLeaveForm({ ...leaveForm, dateRange: e.target.value })}
+                      className="w-full bg-[#f4f3ef] border border-stone-200 rounded-xl px-4 py-3 text-stone-800 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-stone-700 block mb-1.5">Alasan</label>
+                    <textarea
+                      rows="3"
+                      placeholder="Tulis alasan singkat"
+                      value={leaveForm.reason}
+                      onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })}
+                      className="w-full bg-[#f4f3ef] border border-stone-200 rounded-xl px-4 py-3 text-stone-800 outline-none resize-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="px-6 py-3 rounded-xl bg-[#0f3832] hover:bg-[#14473f] text-white font-bold text-xs transition cursor-pointer"
+                  >
+                    Kirim pengajuan
+                  </button>
+                </form>
+              </div>
+
+              {/* Right Card: Pengajuan Saya */}
+              <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs">
+                <h3 className="text-sm font-bold text-stone-900 mb-5">Pengajuan saya</h3>
+                <div className="space-y-6">
+                  {myLeaves.map((lv, idx) => (
+                    <div key={lv.id} className={idx > 0 ? 'pt-5 border-t border-stone-100' : ''}>
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <div className="text-sm font-bold text-stone-900">{lv.type}</div>
+                          <div className="text-xs text-stone-500 mt-0.5">{lv.dates}</div>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full font-semibold text-[11px] bg-[#e8f7ee] text-[#1b7a43]">
+                          {lv.status}
+                        </span>
+                      </div>
+
+                      <div className="relative flex items-center justify-between px-6 pt-2">
+                        <div className="absolute left-8 right-8 top-[14px] h-[2px] bg-[#1b7a43] z-0" />
+                        {['Diajukan', 'Manager', 'HR'].map((step) => (
+                          <div key={step} className="flex flex-col items-center relative z-10">
+                            <div className="w-3.5 h-3.5 rounded-full bg-[#1b7a43] border-2 border-white shadow-xs" />
+                            <span className="text-[11px] font-bold text-stone-800 mt-2">{step}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* =================================================================== */}
+        {/* TAB 5: PAYROLL (Page 13 desain_UI.pdf) */}
         {/* =================================================================== */}
         {activeTab === 'payroll' && (
           <div>
@@ -536,14 +1246,6 @@ export default function HRPortal({ currentUser, onLogout }) {
                 </button>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Fallback for other tabs */}
-        {(activeTab === 'absensi' || activeTab === 'cuti') && (
-          <div className="bg-white rounded-2xl p-8 border border-stone-200 text-center text-stone-500">
-            <h3 className="text-base font-bold text-stone-800 mb-2">Modul {activeTab.toUpperCase()} HR</h3>
-            <p className="text-xs">Pengaturan dan monitoring data {activeTab} terintegrasi.</p>
           </div>
         )}
 
