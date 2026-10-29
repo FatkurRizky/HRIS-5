@@ -64,7 +64,7 @@ export default function SuperAdminPortal({ currentUser, onLogout }) {
                   : 'text-stone-400 hover:text-white'
               }`}
             >
-              Ikhtisar
+              Dashboard
             </button>
             <button
               onClick={() => setActiveTab('pengguna')}
