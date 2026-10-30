@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import api from '../lib/api'
+import useAttendance from '../lib/useAttendance'
+import AttendanceHistory from './AttendanceHistory'
 
 const INITIAL_EMPLOYEES = [
   { id: 'emp-1', init: 'BP', name: 'Bima Pratama', email: 'bima@kerabat.id', role: 'Backend Developer', dept: 'Engineering', status: 'Tetap', bg: 'bg-[#0f3832]' },
@@ -69,9 +71,6 @@ export default function HRPortal({ currentUser, onLogout }) {
   })
 
   // Absensi HR State (Page 11)
-  const [simulatedDistance, setSimulatedDistance] = useState(40)
-  const [clockedIn, setClockedIn] = useState(false)
-  const [clockedOut, setClockedOut] = useState(false)
 
   // Cuti HR State (Page 12)
   const [leaveForm, setLeaveForm] = useState({
@@ -150,6 +149,22 @@ export default function HRPortal({ currentUser, onLogout }) {
     }
     return null
   }, [currentUser])
+
+  // Absensi pribadi HR: logika bersama dengan portal Karyawan
+  const {
+    attendances: myAttendances,
+    todayAttendance,
+    loading: clockLoading,
+    simulatedDistance,
+    setSimulatedDistance,
+    isWithinGeofence,
+    clockIn: handleHrClockIn,
+    clockOut: handleHrClockOut,
+    stats: myAttendanceStats,
+  } = useAttendance({
+    ensureToken: ensureHrToken,
+    notify: (type, msg) => showToast(msg, type),
+  })
 
   // Fetch Employees, Departments, Positions from Backend
   const fetchBackendEmployees = useCallback(async () => {
@@ -379,7 +394,6 @@ export default function HRPortal({ currentUser, onLogout }) {
     )
   })
 
-  const isWithinGeofence = simulatedDistance <= 50
 
   return (
     <div className="min-h-screen bg-[#f5f6f2] text-stone-900 font-sans antialiased flex">
@@ -1043,33 +1057,23 @@ export default function HRPortal({ currentUser, onLogout }) {
 
                 <div className="grid grid-cols-2 gap-3">
                   <button
-                    onClick={() => {
-                      if (!isWithinGeofence) {
-                        showToast('Gagal: Anda berada di luar radius kantor!', 'error')
-                        return
-                      }
-                      setClockedIn(true)
-                      showToast('Clock in berhasil dicatat!')
-                    }}
-                    disabled={clockedIn}
+                    onClick={handleHrClockIn}
+                    disabled={clockLoading || !!todayAttendance?.clockIn}
                     className={`py-3 rounded-xl font-bold text-xs transition cursor-pointer ${
-                      clockedIn
+                      todayAttendance?.clockIn
                         ? 'bg-stone-200 text-stone-500 cursor-not-allowed'
                         : 'bg-[#0f3832] hover:bg-[#14473f] text-white'
                     }`}
                   >
-                    {clockedIn ? 'Sudah Clock in' : 'Clock in'}
+                    {todayAttendance?.clockIn ? 'Sudah Clock in' : 'Clock in'}
                   </button>
 
                   <button
-                    onClick={() => {
-                      setClockedOut(true)
-                      showToast('Clock out berhasil dicatat!')
-                    }}
-                    disabled={!clockedIn || clockedOut}
+                    onClick={handleHrClockOut}
+                    disabled={clockLoading || !todayAttendance?.clockIn || !!todayAttendance?.clockOut}
                     className="py-3 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-50 font-bold text-xs transition cursor-pointer disabled:opacity-50"
                   >
-                    {clockedOut ? 'Sudah Clock out' : 'Clock out'}
+                    {todayAttendance?.clockOut ? 'Sudah Clock out' : 'Clock out'}
                   </button>
                 </div>
               </div>
@@ -1078,46 +1082,16 @@ export default function HRPortal({ currentUser, onLogout }) {
               <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs flex flex-col justify-between">
                 <div>
                   <h3 className="text-sm font-bold text-stone-900 mb-4">Riwayat absensi</h3>
-                  <div className="divide-y divide-stone-100 text-xs">
-                    <div className="py-3.5 flex items-center justify-between">
-                      <div>
-                        <div className="font-bold text-stone-900">Kamis, 15 Okt</div>
-                        <div className="text-stone-500 mt-0.5">Masuk 08:02 · Pulang 17:10</div>
-                      </div>
-                      <span className="px-2.5 py-0.5 rounded-full font-semibold text-[11px] bg-[#e8f7ee] text-[#1b7a43]">
-                        Tepat waktu
-                      </span>
-                    </div>
-
-                    <div className="py-3.5 flex items-center justify-between">
-                      <div>
-                        <div className="font-bold text-stone-900">Rabu, 14 Okt</div>
-                        <div className="text-stone-500 mt-0.5">Masuk 08:21 · Pulang 17:05</div>
-                      </div>
-                      <span className="px-2.5 py-0.5 rounded-full font-semibold text-[11px] bg-[#fef3eb] text-[#b86d1a]">
-                        Terlambat
-                      </span>
-                    </div>
-
-                    <div className="py-3.5 flex items-center justify-between">
-                      <div>
-                        <div className="font-bold text-stone-900">Selasa, 13 Okt</div>
-                        <div className="text-stone-500 mt-0.5">Masuk 07:55 · Pulang 17:30</div>
-                      </div>
-                      <span className="px-2.5 py-0.5 rounded-full font-semibold text-[11px] bg-[#e8f7ee] text-[#1b7a43]">
-                        Tepat waktu
-                      </span>
-                    </div>
-                  </div>
+                  <AttendanceHistory records={myAttendances} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 pt-6 border-t border-stone-100 mt-4">
                   <div>
-                    <div className="text-2xl font-black text-stone-900">168 jam</div>
+                    <div className="text-2xl font-black text-stone-900">{myAttendanceStats.workedHours} jam</div>
                     <div className="text-xs text-stone-500 mt-0.5">Total jam kerja bulan ini</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-black text-stone-900">2 kali</div>
+                    <div className="text-2xl font-black text-stone-900">{myAttendanceStats.lateCount} kali</div>
                     <div className="text-xs text-stone-500 mt-0.5">Terlambat bulan ini</div>
                   </div>
                 </div>

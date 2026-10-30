@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import api from '../lib/api'
+import useAttendance from '../lib/useAttendance'
+import AttendanceHistory from './AttendanceHistory'
 import TrainCalendarPicker, { formatKaiDate, calculateLeaveDays } from './TrainCalendarPicker'
 
 function formatRupiah(amount) {
@@ -27,18 +29,7 @@ export default function EmployeePortal({ currentUser, onLogout }) {
 
   // Data State
   const [employeeProfile, setEmployeeProfile] = useState(null)
-  const [officeLocation, setOfficeLocation] = useState({
-    name: 'Kantor Pusat Surabaya',
-    latitude: -7.8166,
-    longitude: 112.0114,
-    radius: 50,
-  })
 
-  const [attendances, setAttendances] = useState([])
-  const [attendanceRecap, setAttendanceRecap] = useState(null)
-  const [todayAttendance, setTodayAttendance] = useState(null)
-  const [clockActionLoading, setClockActionLoading] = useState(false)
-  const [simulatedDistance, setSimulatedDistance] = useState(40)
   const [isUsingRealGps, setIsUsingRealGps] = useState(false)
 
   // Cuti & Payroll State
@@ -110,16 +101,6 @@ export default function EmployeePortal({ currentUser, onLogout }) {
     await ensureToken()
 
     try {
-      const locRes = await api.get('/office-locations')
-      if (Array.isArray(locRes.data) && locRes.data.length > 0) {
-        const activeLoc = locRes.data.find((l) => l.isActive) || locRes.data[0]
-        setOfficeLocation(activeLoc)
-      }
-    } catch {
-      // Keep default officeLocation
-    }
-
-    try {
       const profRes = await api.get('/employees/me')
       setEmployeeProfile(profRes.data)
     } catch {
@@ -128,21 +109,6 @@ export default function EmployeePortal({ currentUser, onLogout }) {
         position: { name: 'Backend Developer', baseSalary: 12000000 },
         leaveQuota: 8,
       })
-    }
-
-    try {
-      const attRes = await api.get('/attendance/my-records')
-      const records = attRes.data || []
-      setAttendances(records)
-      const now = new Date()
-      const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-      const utcDateStr = now.toISOString().split('T')[0]
-      const foundToday = records.find(
-        (r) => r.date && (r.date.startsWith(localDateStr) || r.date.startsWith(utcDateStr))
-      )
-      setTodayAttendance(foundToday || null)
-    } catch (e) {
-      console.warn('Gagal memuat absensi:', e)
     }
 
     try {
@@ -164,109 +130,20 @@ export default function EmployeePortal({ currentUser, onLogout }) {
     fetchData()
   }, [fetchData])
 
-  // Clock In
-  const handleClockIn = async () => {
-    const maxRadius = officeLocation?.radius || 50
-    if (simulatedDistance > maxRadius) {
-      showToast('error', `Di luar radius kantor (${simulatedDistance}m > ${maxRadius}m). Dekati kantor untuk Clock in.`)
-      return
-    }
-
-    setClockActionLoading(true)
-    const simulatedLat = officeLocation.latitude + (simulatedDistance * 0.9) / 111320
-    const coordsPayload = {
-      latitude: simulatedLat,
-      longitude: officeLocation.longitude,
-    }
-
-    try {
-      await ensureToken()
-      const res = await api.post('/attendance/clock-in', coordsPayload)
-      showToast('success', res.data?.message || `Clock in berhasil! (Jarak: ${simulatedDistance}m)`)
-      setTodayAttendance(
-        res.data?.attendance || {
-          clockIn: new Date().toISOString(),
-          status: 'PRESENT',
-        }
-      )
-      fetchData()
-    } catch (err) {
-      // Jika sudah pernah absen hari ini di DB (409), reset dulu otomatis lalu clock-in ulang
-      if (err.response?.status === 409) {
-        try {
-          await api.delete('/attendance/today')
-          const retryRes = await api.post('/attendance/clock-in', coordsPayload)
-          showToast('success', retryRes.data?.message || `Clock in berhasil! (Jarak: ${simulatedDistance}m)`)
-          setTodayAttendance(
-            retryRes.data?.attendance || {
-              clockIn: new Date().toISOString(),
-              status: 'PRESENT',
-            }
-          )
-          fetchData()
-          return
-        } catch {
-          // Fallback ke state lokal di bawah
-        }
-      }
-
-      // Fallback agar simulasi tetap jalan mulus meskipun mode demo
-      setTodayAttendance({
-        clockIn: new Date().toISOString(),
-        status: 'PRESENT',
-      })
-      showToast('success', `Clock in berhasil dicatat! (Jarak: ${simulatedDistance}m dari kantor)`)
-    } finally {
-      setClockActionLoading(false)
-    }
-  }
-
-  // Clock Out
-  const handleClockOut = async () => {
-    const maxRadius = officeLocation?.radius || 50
-    if (simulatedDistance > maxRadius) {
-      showToast('error', `Di luar radius kantor (${simulatedDistance}m > ${maxRadius}m). Dekati kantor untuk Clock out.`)
-      return
-    }
-
-    setClockActionLoading(true)
-    const simulatedLat = officeLocation.latitude + (simulatedDistance * 0.9) / 111320
-    const coordsPayload = {
-      latitude: simulatedLat,
-      longitude: officeLocation.longitude,
-    }
-
-    try {
-      await ensureToken()
-      const res = await api.post('/attendance/clock-out', coordsPayload)
-      showToast('success', res.data?.message || 'Clock out berhasil dicatat!')
-      setTodayAttendance((prev) => ({
-        ...prev,
-        ...(res.data?.attendance || {}),
-        clockOut: new Date().toISOString(),
-      }))
-      fetchData()
-    } catch {
-      setTodayAttendance((prev) => ({
-        ...prev,
-        clockOut: new Date().toISOString(),
-      }))
-      showToast('success', 'Clock out berhasil dicatat!')
-    } finally {
-      setClockActionLoading(false)
-    }
-  }
-
-  // Reset Absen Hari Ini (untuk keperluan demo berulang)
-  const handleResetToday = async () => {
-    try {
-      await api.delete('/attendance/today')
-    } catch {
-      // Ignore if demo mode
-    }
-    setTodayAttendance(null)
-    showToast('info', 'Status absen hari ini di-reset. Silakan coba Clock in kembali.')
-  }
+  // Absensi: logika bersama (sama dengan portal HR)
+  const {
+    officeLocation,
+    attendances,
+    todayAttendance,
+    loading: clockActionLoading,
+    simulatedDistance,
+    setSimulatedDistance,
+    isWithinGeofence,
+    clockIn: handleClockIn,
+    clockOut: handleClockOut,
+    resetToday: handleResetToday,
+    stats: attendanceStats,
+  } = useAttendance({ ensureToken, notify: showToast })
 
   // Submit Leave
   const handleSubmitLeave = async (e) => {
@@ -350,7 +227,6 @@ export default function EmployeePortal({ currentUser, onLogout }) {
     }
   }
 
-  const isWithinGeofence = simulatedDistance <= (officeLocation?.radius || 50)
   const userName = employeeProfile?.user?.name || currentUser.name || 'Bima Pratama'
 
   return (
@@ -497,12 +373,12 @@ export default function EmployeePortal({ currentUser, onLogout }) {
               </div>
 
               <div className="bg-white rounded-2xl border border-[#ece7de] py-4 px-2 text-center shadow-xs">
-                <div className="text-3xl font-extrabold text-stone-900 leading-tight">2x</div>
+                <div className="text-3xl font-extrabold text-stone-900 leading-tight">{attendanceStats.lateCount}x</div>
                 <div className="text-[11px] text-stone-500 font-medium mt-1">Terlambat bulan ini</div>
               </div>
 
               <div className="bg-white rounded-2xl border border-[#ece7de] py-4 px-2 text-center shadow-xs">
-                <div className="text-3xl font-extrabold text-stone-900 leading-tight">168j</div>
+                <div className="text-3xl font-extrabold text-stone-900 leading-tight">{attendanceStats.workedHours}j</div>
                 <div className="text-[11px] text-stone-500 font-medium mt-1">Jam kerja</div>
               </div>
             </div>
@@ -562,38 +438,8 @@ export default function EmployeePortal({ currentUser, onLogout }) {
             {/* RIWAYAT ABSENSI CARD */}
             <div className="bg-white rounded-2xl border border-[#ece7de] p-5 shadow-xs">
               <h3 className="text-sm font-bold text-stone-900 mb-3">Riwayat absensi</h3>
-              
-              <div className="divide-y divide-stone-100">
-                <div className="py-2.5 flex items-center justify-between text-xs">
-                  <div>
-                    <div className="font-bold text-stone-800">Kamis, 15 Okt</div>
-                    <div className="text-stone-500 mt-0.5">Masuk 08:02 · Pulang 17:10</div>
-                  </div>
-                  <span className="px-2.5 py-0.5 rounded-full font-semibold text-[11px] bg-[#e8f7ee] text-[#1b7a43]">
-                    Tepat waktu
-                  </span>
-                </div>
 
-                <div className="py-2.5 flex items-center justify-between text-xs">
-                  <div>
-                    <div className="font-bold text-stone-800">Rabu, 14 Okt</div>
-                    <div className="text-stone-500 mt-0.5">Masuk 08:21 · Pulang 17:05</div>
-                  </div>
-                  <span className="px-2.5 py-0.5 rounded-full font-semibold text-[11px] bg-[#fef3eb] text-[#c44d27]">
-                    Terlambat
-                  </span>
-                </div>
-
-                <div className="py-2.5 flex items-center justify-between text-xs">
-                  <div>
-                    <div className="font-bold text-stone-800">Selasa, 13 Okt</div>
-                    <div className="text-stone-500 mt-0.5">Masuk 07:55 · Pulang 17:30</div>
-                  </div>
-                  <span className="px-2.5 py-0.5 rounded-full font-semibold text-[11px] bg-[#e8f7ee] text-[#1b7a43]">
-                    Tepat waktu
-                  </span>
-                </div>
-              </div>
+              <AttendanceHistory records={attendances} />
             </div>
           </>
         )}
