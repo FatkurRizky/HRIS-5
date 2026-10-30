@@ -674,8 +674,8 @@ export default function EmployeePortal({ currentUser, onLogout }) {
                       : `${startFormatted} s/d ${endFormatted}`
 
                   const isManagerApproved =
-                    lv.status === 'APPROVED_BY_MANAGER' || lv.status === 'APPROVED'
-                  const isHrApproved = lv.status === 'APPROVED'
+                    lv.status === 'MANAGER_APPROVED' || lv.status === 'HR_APPROVED'
+                  const isHrApproved = lv.status === 'HR_APPROVED'
                   const isRejected = lv.status === 'REJECTED'
 
                   return (

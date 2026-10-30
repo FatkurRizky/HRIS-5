@@ -907,7 +907,7 @@ export default function KaryawanPortal({ currentUser, onLogout }) {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Keterlambatan</span>
                   <strong className="text-red-600 font-bold">
-                    - {formatRupiah(selectedPayroll?.deductions ?? 50000)}
+                    - {formatRupiah(selectedPayroll?.deductions ?? 100000)}
                   </strong>
                 </div>
                 <div className="flex justify-between items-center">

@@ -10,7 +10,7 @@ import { GeneratePayrollDto } from './dto/generate-payroll.dto.js';
 import { RevisePayrollDto } from './dto/revise-payroll.dto.js';
 import { buildPayslipPdfBuffer } from './pdf-builder.js';
 
-const LATE_PENALTY_PER_DAY = 50000;
+const LATE_PENALTY_PER_DAY = 100000; // Potongan gaji Rp100.000 per hari terlambat
 const WORK_DAYS_PER_MONTH = 22;
 const BPJS_EMPLOYEE_RATE = 0.03; // 1% Kesehatan + 2% Ketenagakerjaan
 const MONTHLY_PTKP = 4500000;

@@ -84,6 +84,10 @@ export default function HRPortal({ currentUser, onLogout }) {
     { id: 2, type: 'Izin', dates: '9 Okt', status: 'Disetujui' },
   ])
 
+  // Antrean persetujuan cuti Layer 2 (sudah disetujui Manager)
+  const [hrLeaveQueue, setHrLeaveQueue] = useState([])
+  const [processingLeaveId, setProcessingLeaveId] = useState(null)
+
   // Payroll State (Page 13)
   const [selectedEmployee, setSelectedEmployee] = useState({
     name: 'Bima Pratama',
@@ -185,6 +189,41 @@ export default function HRPortal({ currentUser, onLogout }) {
   useEffect(() => {
     fetchBackendEmployees()
   }, [fetchBackendEmployees])
+
+  // Ambil antrean persetujuan cuti Layer 2 dari backend
+  const fetchHrLeaveQueue = useCallback(async () => {
+    try {
+      await ensureHrToken()
+      const res = await api.get('/leaves/approvals')
+      setHrLeaveQueue(Array.isArray(res.data) ? res.data : [])
+    } catch (err) {
+      console.warn('Gagal memuat antrean cuti HR:', err)
+    }
+  }, [ensureHrToken])
+
+  useEffect(() => {
+    fetchHrLeaveQueue()
+  }, [fetchHrLeaveQueue])
+
+  const handleHrLeaveAction = async (leave, action) => {
+    setProcessingLeaveId(leave.id)
+    try {
+      await ensureHrToken()
+      if (action === 'APPROVE') {
+        await api.patch(`/leaves/${leave.id}/hr-approve`)
+        showToast('Cuti disetujui final oleh HR')
+      } else {
+        await api.patch(`/leaves/${leave.id}/reject`, { reason: 'Ditolak oleh HR' })
+        showToast('Pengajuan cuti ditolak')
+      }
+      await fetchHrLeaveQueue()
+    } catch (err) {
+      const msg = err?.response?.data?.message
+      showToast(Array.isArray(msg) ? msg.join(', ') : msg || 'Gagal memproses pengajuan cuti', 'error')
+    } finally {
+      setProcessingLeaveId(null)
+    }
+  }
 
   // Handle Tambah Karyawan Submit
   const handleAddEmployeeSubmit = async (e) => {
@@ -1053,6 +1092,55 @@ export default function HRPortal({ currentUser, onLogout }) {
               <p className="text-xs text-stone-500 mt-1">
                 Persetujuan berjenjang: Manager, lalu HR
               </p>
+            </div>
+
+            {/* Antrean Persetujuan HR (Layer 2) */}
+            <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs mb-6">
+              <h3 className="text-sm font-bold text-stone-900 mb-1">Antrean persetujuan HR (Layer 2)</h3>
+              <p className="text-xs text-stone-500 mb-4">
+                Hanya pengajuan yang sudah disetujui Manager yang muncul di sini.
+              </p>
+              {hrLeaveQueue.length === 0 ? (
+                <div className="text-xs text-stone-400 py-2">Tidak ada pengajuan yang menunggu persetujuan HR.</div>
+              ) : (
+                <div className="space-y-3">
+                  {hrLeaveQueue.map((lv) => (
+                    <div
+                      key={lv.id}
+                      className="flex items-center justify-between gap-4 border border-stone-100 rounded-xl px-4 py-3"
+                    >
+                      <div>
+                        <div className="text-sm font-bold text-stone-900">
+                          {lv.employee?.user?.name || 'Karyawan'}
+                        </div>
+                        <div className="text-xs text-stone-500 mt-0.5">
+                          {lv.type === 'CUTI' ? 'Cuti tahunan' : lv.type === 'SAKIT' ? 'Sakit' : 'Izin'},{' '}
+                          {lv.workDays} hari kerja ({(lv.startDate || '').slice(0, 10)} s/d {(lv.endDate || '').slice(0, 10)})
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded-full font-semibold text-[11px] bg-[#ebf3fb] text-[#285a84]">
+                          Disetujui Manager
+                        </span>
+                        <button
+                          disabled={processingLeaveId === lv.id}
+                          onClick={() => handleHrLeaveAction(lv, 'REJECT')}
+                          className="px-3 py-1.5 rounded-lg border border-stone-200 text-xs font-bold text-stone-700 hover:bg-stone-50 disabled:opacity-50 cursor-pointer"
+                        >
+                          Tolak
+                        </button>
+                        <button
+                          disabled={processingLeaveId === lv.id}
+                          onClick={() => handleHrLeaveAction(lv, 'APPROVE')}
+                          className="px-3 py-1.5 rounded-lg bg-[#0f3832] hover:bg-[#14473f] text-white text-xs font-bold disabled:opacity-50 cursor-pointer"
+                        >
+                          Setujui final
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -58,8 +58,11 @@ export class LeaveController {
 
   @Roles('HR', 'SUPER_ADMIN')
   @Patch(':id/hr-approve')
-  hrApprove(@Param('id') id: string) {
-    return this.leaveService.hrApprove(id);
+  hrApprove(
+    @Param('id') id: string,
+    @Request() req: { user: { id: string } },
+  ) {
+    return this.leaveService.hrApprove(id, req.user.id);
   }
 
   @Roles('MANAGER', 'HR', 'SUPER_ADMIN')

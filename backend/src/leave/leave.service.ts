@@ -118,6 +118,7 @@ export class LeaveService {
         where: {
           status: 'PENDING',
           employee: {
+            id: { not: manager.id },
             OR: [{ managerId: manager.id }, { managerId: null }],
           },
         },
@@ -134,10 +135,10 @@ export class LeaveService {
       });
     }
 
-    // HR atau SUPER_ADMIN melihat antrean eskalasi (MANAGER_APPROVED) & PENDING
+    // HR / SUPER_ADMIN hanya melihat antrean Layer 2 (sudah disetujui Manager)
     return this.prisma.leaveRequest.findMany({
       where: {
-        status: { in: ['MANAGER_APPROVED', 'PENDING'] },
+        status: 'MANAGER_APPROVED',
       },
       include: {
         employee: {
@@ -184,6 +185,12 @@ export class LeaveService {
       );
     }
 
+    if (leave.employee.userId === userId) {
+      throw new ForbiddenException(
+        'Anda tidak dapat menyetujui pengajuan cuti milik sendiri',
+      );
+    }
+
     if (role === 'MANAGER') {
       const manager = await this.getEmployeeByUserId(userId);
       if (
@@ -208,7 +215,7 @@ export class LeaveService {
     };
   }
 
-  async hrApprove(id: string) {
+  async hrApprove(id: string, userId: string) {
     const leave = await this.prisma.leaveRequest.findUnique({
       where: { id },
       include: { employee: true },
@@ -228,8 +235,14 @@ export class LeaveService {
       );
     }
 
-    // Jika karyawan punya manager, wajib lewat MANAGER_APPROVED dulu
-    if (leave.employee.managerId && leave.status !== 'MANAGER_APPROVED') {
+    if (leave.employee.userId === userId) {
+      throw new ForbiddenException(
+        'Anda tidak dapat menyetujui pengajuan cuti milik sendiri',
+      );
+    }
+
+    // Verifikasi 2 lapis: HR wajib menunggu persetujuan Manager (Layer 1)
+    if (leave.status !== 'MANAGER_APPROVED') {
       throw new BadRequestException(
         'Pengajuan harus disetujui oleh Manager (Layer 1) terlebih dahulu sebelum disetujui final oleh HR',
       );
