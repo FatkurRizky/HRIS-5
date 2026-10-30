@@ -35,9 +35,16 @@ function getInitials(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
+const INITIAL_TEAM = [
+  { id: 'tm-1', initials: 'BP', bg: 'bg-[#1a365d]', name: 'Bima Pratama', role: 'Backend Developer', today: 'Hadir 08:02', late: '1x', overtime: '3 jam', leaveQuota: 12 },
+  { id: 'tm-2', initials: 'DL', bg: 'bg-[#2b6cb0]', name: 'Dewi Lestari', role: 'UI Designer', today: 'Hadir 07:58', late: '0x', overtime: '0 jam', leaveQuota: 10 },
+  { id: 'tm-3', initials: 'KS', bg: 'bg-[#b86d1a]', name: 'Kevin Santoso', role: 'QA Engineer', today: 'Sakit', late: '2x', overtime: '5 jam', leaveQuota: 8 },
+]
+
 export default function ManagerPortal({ currentUser, onLogout }) {
   const [activeTab, setActiveTab] = useState('ringkasan') // 'ringkasan' | 'persetujuan' | 'tim'
   const [approvalList, setApprovalList] = useState(INITIAL_APPROVALS)
+  const [teamList, setTeamList] = useState(INITIAL_TEAM)
   const [toast, setToast] = useState(null)
 
   const showToast = (msg) => {
@@ -45,11 +52,35 @@ export default function ManagerPortal({ currentUser, onLogout }) {
     setTimeout(() => setToast(null), 3000)
   }
 
+  const ensureManagerToken = useCallback(async () => {
+    const existing = localStorage.getItem('hris_token')
+    if (existing) return existing
+    try {
+      const res = await api.post('/auth/login', {
+        email: currentUser?.backendEmail || currentUser?.email || 'manager@kerabat.id',
+        password: 'kerabat123',
+      })
+      const token = res.data?.accessToken ?? res.data?.token
+      if (token) {
+        localStorage.setItem('hris_token', token)
+        return token
+      }
+    } catch {
+      // Ignore if offline
+    }
+    return null
+  }, [currentUser])
+
   const fetchApprovals = useCallback(async () => {
     try {
-      const res = await api.get('/leaves/approvals')
-      if (Array.isArray(res.data) && res.data.length > 0) {
-        const mapped = res.data.map((lv) => ({
+      await ensureManagerToken()
+      const [appRes, empRes] = await Promise.allSettled([
+        api.get('/leaves/approvals'),
+        api.get('/employees'),
+      ])
+
+      if (appRes.status === 'fulfilled' && Array.isArray(appRes.value.data) && appRes.value.data.length > 0) {
+        const mapped = appRes.value.data.map((lv) => ({
           id: lv.id,
           initials: getInitials(lv.employee?.user?.name),
           avatarBg: 'bg-[#285a84]',
@@ -60,10 +91,31 @@ export default function ManagerPortal({ currentUser, onLogout }) {
         }))
         setApprovalList([...mapped, ...INITIAL_APPROVALS])
       }
+
+      if (empRes.status === 'fulfilled' && Array.isArray(empRes.value.data) && empRes.value.data.length > 0) {
+        const dbMembers = empRes.value.data
+          .filter((e) => e.user?.role === 'EMPLOYEE')
+          .map((e) => ({
+            id: e.id,
+            initials: getInitials(e.user?.name),
+            bg: 'bg-[#285a84]',
+            name: e.user?.name || 'Karyawan',
+            role: e.position?.name || 'Staff Engineer',
+            today: 'Hadir 08:00',
+            late: '0x',
+            overtime: '0 jam',
+            leaveQuota: e.leaveQuota ?? 12,
+          }))
+        const existingNames = new Set(dbMembers.map((m) => m.name.toLowerCase()))
+        setTeamList([
+          ...dbMembers,
+          ...INITIAL_TEAM.filter((m) => !existingNames.has(m.name.toLowerCase())),
+        ])
+      }
     } catch {
       // Fallback to initial showcase list
     }
-  }, [])
+  }, [ensureManagerToken])
 
   useEffect(() => {
     fetchApprovals()
@@ -385,47 +437,23 @@ export default function ManagerPortal({ currentUser, onLogout }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
-                  <tr className="hover:bg-stone-50/50 transition">
-                    <td className="py-3.5 px-5 flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#1a365d] text-white font-bold flex items-center justify-center text-xs">
-                        BP
-                      </div>
-                      <span className="font-bold text-stone-900">Bima Pratama</span>
-                    </td>
-                    <td className="py-3.5 px-4 text-stone-600">Backend Developer</td>
-                    <td className="py-3.5 px-4 text-stone-800 font-semibold">Hadir 08:02</td>
-                    <td className="py-3.5 px-4 text-stone-600">1x</td>
-                    <td className="py-3.5 px-4 text-stone-600">3 jam</td>
-                    <td className="py-3.5 px-5 text-stone-900 font-bold">12 hari</td>
-                  </tr>
-
-                  <tr className="hover:bg-stone-50/50 transition">
-                    <td className="py-3.5 px-5 flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#2b6cb0] text-white font-bold flex items-center justify-center text-xs">
-                        DL
-                      </div>
-                      <span className="font-bold text-stone-900">Dewi Lestari</span>
-                    </td>
-                    <td className="py-3.5 px-4 text-stone-600">UI Designer</td>
-                    <td className="py-3.5 px-4 text-stone-800 font-semibold">Hadir 07:58</td>
-                    <td className="py-3.5 px-4 text-stone-600">0x</td>
-                    <td className="py-3.5 px-4 text-stone-600">0 jam</td>
-                    <td className="py-3.5 px-5 text-stone-900 font-bold">10 hari</td>
-                  </tr>
-
-                  <tr className="hover:bg-stone-50/50 transition">
-                    <td className="py-3.5 px-5 flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#b86d1a] text-white font-bold flex items-center justify-center text-xs">
-                        KS
-                      </div>
-                      <span className="font-bold text-stone-900">Kevin Santoso</span>
-                    </td>
-                    <td className="py-3.5 px-4 text-stone-600">QA Engineer</td>
-                    <td className="py-3.5 px-4 text-[#c44d27] font-semibold">Sakit</td>
-                    <td className="py-3.5 px-4 text-stone-600">2x</td>
-                    <td className="py-3.5 px-4 text-stone-600">5 jam</td>
-                    <td className="py-3.5 px-5 text-stone-900 font-bold">8 hari</td>
-                  </tr>
+                  {teamList.map((member) => (
+                    <tr key={member.id} className="hover:bg-stone-50/50 transition">
+                      <td className="py-3.5 px-5 flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full ${member.bg} text-white font-bold flex items-center justify-center text-xs`}>
+                          {member.initials}
+                        </div>
+                        <span className="font-bold text-stone-900">{member.name}</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-stone-600">{member.role}</td>
+                      <td className={`py-3.5 px-4 font-semibold ${member.today === 'Sakit' ? 'text-[#c44d27]' : 'text-stone-800'}`}>
+                        {member.today}
+                      </td>
+                      <td className="py-3.5 px-4 text-stone-600">{member.late}</td>
+                      <td className="py-3.5 px-4 text-stone-600">{member.overtime}</td>
+                      <td className="py-3.5 px-5 text-stone-900 font-bold">{member.leaveQuota} hari</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

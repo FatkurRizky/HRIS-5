@@ -5,4 +5,8 @@ export class RejectLeaveDto {
   @IsString()
   @IsNotEmpty({ message: 'Alasan penolakan tidak boleh kosong' })
   reason?: string;
+
+  @IsOptional()
+  @IsString()
+  rejectionReason?: string;
 }

@@ -118,7 +118,7 @@ export class LeaveService {
         where: {
           status: 'PENDING',
           employee: {
-            managerId: manager.id,
+            OR: [{ managerId: manager.id }, { managerId: null }],
           },
         },
         include: {
@@ -289,7 +289,9 @@ export class LeaveService {
       data: {
         status: 'REJECTED',
         rejectionReason:
-          dto.reason?.trim() ?? 'Ditolak oleh atasan / HR Administrator',
+          dto.reason?.trim() ??
+          dto.rejectionReason?.trim() ??
+          'Ditolak oleh atasan / HR Administrator',
       },
     });
 

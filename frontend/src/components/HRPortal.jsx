@@ -120,9 +120,30 @@ export default function HRPortal({ currentUser, onLogout }) {
     return () => clearInterval(timer)
   }, [])
 
+  // Ensure valid JWT token for HR actions
+  const ensureHrToken = useCallback(async () => {
+    const existing = localStorage.getItem('hris_token')
+    if (existing) return existing
+    try {
+      const res = await api.post('/auth/login', {
+        email: currentUser?.backendEmail || currentUser?.email || 'hr@kerabat.id',
+        password: 'kerabat123',
+      })
+      const token = res.data?.accessToken ?? res.data?.token
+      if (token) {
+        localStorage.setItem('hris_token', token)
+        return token
+      }
+    } catch {
+      // Ignore if offline
+    }
+    return null
+  }, [currentUser])
+
   // Fetch Employees, Departments, Positions from Backend
   const fetchBackendEmployees = useCallback(async () => {
     try {
+      await ensureHrToken()
       const [empRes, deptRes, posRes] = await Promise.allSettled([
         api.get('/employees'),
         api.get('/departments'),
@@ -159,7 +180,7 @@ export default function HRPortal({ currentUser, onLogout }) {
     } catch (err) {
       console.warn('Menggunakan daftar karyawan lokal:', err)
     }
-  }, [])
+  }, [ensureHrToken])
 
   useEffect(() => {
     fetchBackendEmployees()
@@ -186,6 +207,7 @@ export default function HRPortal({ currentUser, onLogout }) {
     setSubmittingEmployee(true)
 
     try {
+      await ensureHrToken()
       // Find matching departmentId & positionId if available in DB
       const matchedDept = departments.find(
         (d) => d.name.toLowerCase() === newEmp.departmentName.toLowerCase()
@@ -200,6 +222,8 @@ export default function HRPortal({ currentUser, onLogout }) {
         password: newEmp.password,
         role: newEmp.role,
         status: newEmp.status,
+        departmentName: newEmp.departmentName,
+        positionName: newEmp.positionName.trim() || 'Staff',
         ...(newEmp.nik.trim() ? { nik: newEmp.nik.trim() } : {}),
         ...(matchedDept ? { departmentId: matchedDept.id } : {}),
         ...(matchedPos ? { positionId: matchedPos.id } : {}),

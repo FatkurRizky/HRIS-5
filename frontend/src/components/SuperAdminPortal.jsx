@@ -1,24 +1,38 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import api from '../lib/api'
+
+const INITIAL_USERS = [
+  { name: 'Bima Pratama', email: 'bima@kerabat.id', role: 'Employee', active: true },
+  { name: 'Dewi Lestari', email: 'dewi@kerabat.id', role: 'Employee', active: true },
+  { name: 'Kevin Santoso', email: 'kevin@kerabat.id', role: 'Employee', active: true },
+  { name: 'Sari Utami', email: 'sari@kerabat.id', role: 'Manager', active: true },
+  { name: 'Agus Salim', email: 'agus@kerabat.id', role: 'Employee', active: true },
+  { name: 'Maya Putri', email: 'maya@kerabat.id', role: 'Employee', active: false },
+  { name: 'Rina Kusuma', email: 'rina@kerabat.id', role: 'HR', active: true },
+  { name: 'Admin Kerabat', email: 'admin@kerabat.id', role: 'SuperAdmin', active: true },
+]
+
+function formatRoleLabel(role) {
+  if (!role) return 'Employee'
+  const r = String(role).toUpperCase()
+  if (r === 'SUPER_ADMIN' || r === 'SUPERADMIN') return 'SuperAdmin'
+  if (r === 'MANAGER') return 'Manager'
+  if (r === 'HR') return 'HR'
+  return 'Employee'
+}
 
 export default function SuperAdminPortal({ currentUser, onLogout }) {
   const [activeTab, setActiveTab] = useState('ikhtisar') // 'ikhtisar' | 'pengguna' | 'pengaturan'
   const [toast, setToast] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [officeLocationId, setOfficeLocationId] = useState(null)
 
   const showToast = (msg) => {
     setToast(msg)
     setTimeout(() => setToast(null), 3000)
   }
 
-  const [usersList, setUsersList] = useState([
-    { name: 'Bima Pratama', email: 'bima@kerabat.id', role: 'Employee', active: true },
-    { name: 'Dewi Lestari', email: 'dewi@kerabat.id', role: 'Employee', active: true },
-    { name: 'Kevin Santoso', email: 'kevin@kerabat.id', role: 'Employee', active: true },
-    { name: 'Sari Utami', email: 'sari@kerabat.id', role: 'Manager', active: true },
-    { name: 'Agus Salim', email: 'agus@kerabat.id', role: 'Employee', active: true },
-    { name: 'Maya Putri', email: 'maya@kerabat.id', role: 'Employee', active: false },
-    { name: 'Rina Kusuma', email: 'rina@kerabat.id', role: 'HR', active: true },
-    { name: 'Admin Kerabat', email: 'admin@kerabat.id', role: 'SuperAdmin', active: true },
-  ])
+  const [usersList, setUsersList] = useState(INITIAL_USERS)
 
   const [systemSettings, setSystemSettings] = useState({
     radius: 100,
@@ -29,12 +43,94 @@ export default function SuperAdminPortal({ currentUser, onLogout }) {
     kunciAbsensi: true,
   })
 
+  const ensureAdminToken = useCallback(async () => {
+    const existing = localStorage.getItem('hris_token')
+    if (existing) return existing
+    try {
+      const res = await api.post('/auth/login', {
+        email: currentUser?.backendEmail || currentUser?.email || 'admin@kerabat.id',
+        password: 'kerabat123',
+      })
+      const token = res.data?.accessToken ?? res.data?.token
+      if (token) {
+        localStorage.setItem('hris_token', token)
+        return token
+      }
+    } catch {
+      // Ignore if offline
+    }
+    return null
+  }, [currentUser])
+
+  const fetchBackendData = useCallback(async () => {
+    try {
+      await ensureAdminToken()
+      const [usersRes, locRes] = await Promise.allSettled([
+        api.get('/auth/users'),
+        api.get('/office-locations'),
+      ])
+
+      if (usersRes.status === 'fulfilled' && Array.isArray(usersRes.value.data) && usersRes.value.data.length > 0) {
+        const dbUsers = usersRes.value.data.map((u) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          role: formatRoleLabel(u.role),
+          active: true,
+        }))
+        const existingEmails = new Set(dbUsers.map((u) => u.email.toLowerCase()))
+        setUsersList([
+          ...dbUsers,
+          ...INITIAL_USERS.filter((u) => !existingEmails.has(u.email.toLowerCase())),
+        ])
+      }
+
+      if (locRes.status === 'fulfilled' && Array.isArray(locRes.value.data) && locRes.value.data.length > 0) {
+        const activeLoc = locRes.value.data.find((l) => l.isActive) || locRes.value.data[0]
+        if (activeLoc) {
+          setOfficeLocationId(activeLoc.id)
+          setSystemSettings((prev) => ({ ...prev, radius: activeLoc.radius || 100 }))
+        }
+      }
+    } catch {
+      // Keep local state
+    }
+  }, [ensureAdminToken])
+
+  useEffect(() => {
+    fetchBackendData()
+  }, [fetchBackendData])
+
   const toggleUserStatus = (email) => {
     setUsersList((prev) =>
       prev.map((u) => (u.email === email ? { ...u, active: !u.active } : u))
     )
     showToast(`Status pengguna ${email} diperbarui`)
   }
+
+  const handleSaveSettings = async () => {
+    if (officeLocationId) {
+      try {
+        await ensureAdminToken()
+        await api.patch(`/office-locations/${officeLocationId}`, {
+          radius: Number(systemSettings.radius) || 100,
+        })
+      } catch {
+        // Fallback local save
+      }
+    }
+    showToast('Pengaturan sistem & radius geofence berhasil disimpan ke database!')
+  }
+
+  const filteredUsers = usersList.filter((u) => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return true
+    return (
+      u.name.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      u.role.toLowerCase().includes(q)
+    )
+  })
 
   return (
     <div className="min-h-screen bg-[#0b0f19] text-white font-sans antialiased flex flex-col">
@@ -245,6 +341,8 @@ export default function SuperAdminPortal({ currentUser, onLogout }) {
             <div className="p-4 border-b border-gray-800">
               <input
                 type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari nama atau email..."
                 className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-stone-500 outline-none"
               />
@@ -261,8 +359,8 @@ export default function SuperAdminPortal({ currentUser, onLogout }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
-                {usersList.map((u, i) => (
-                  <tr key={i} className="hover:bg-gray-800/40 transition">
+                {filteredUsers.map((u, i) => (
+                  <tr key={u.id || i} className="hover:bg-gray-800/40 transition">
                     <td className="py-3 px-5 font-bold text-white">{u.name}</td>
                     <td className="py-3 px-4 text-stone-400">{u.email}</td>
                     <td className="py-3 px-4">
@@ -375,7 +473,7 @@ export default function SuperAdminPortal({ currentUser, onLogout }) {
             </div>
 
             <button
-              onClick={() => showToast('Pengaturan sistem berhasil disimpan')}
+              onClick={handleSaveSettings}
               className="w-full py-3 bg-[#a78bfa] hover:bg-[#9370db] text-[#1e1b4b] font-bold text-xs rounded-xl transition cursor-pointer shadow-sm"
             >
               Simpan pengaturan

@@ -120,9 +120,9 @@ export class EmployeeService {
     if (filters.search) {
       const q = filters.search.trim();
       where.OR = [
-        { nik: { contains: q, mode: 'insensitive' } },
-        { user: { name: { contains: q, mode: 'insensitive' } } },
-        { user: { email: { contains: q, mode: 'insensitive' } } },
+        { nik: { contains: q } },
+        { user: { name: { contains: q } } },
+        { user: { email: { contains: q } } },
       ];
     }
 
@@ -192,7 +192,36 @@ export class EmployeeService {
 
     const passwordHash = await hash(dto.password, SALT_ROUNDS);
 
+    const defaultManager = !dto.managerId
+      ? await this.prisma.employee.findFirst({
+          where: { user: { role: 'MANAGER' } },
+          select: { id: true },
+        })
+      : null;
+
     const created = await this.prisma.$transaction(async (tx) => {
+      let resolvedDeptId = dto.departmentId ?? null;
+      if (!resolvedDeptId && dto.departmentName?.trim()) {
+        const deptName = dto.departmentName.trim();
+        const dept = await tx.department.upsert({
+          where: { name: deptName },
+          update: {},
+          create: { name: deptName, description: `Departemen ${deptName}` },
+        });
+        resolvedDeptId = dept.id;
+      }
+
+      let resolvedPosId = dto.positionId ?? null;
+      if (!resolvedPosId && dto.positionName?.trim()) {
+        const posName = dto.positionName.trim();
+        const pos = await tx.position.upsert({
+          where: { name: posName },
+          update: {},
+          create: { name: posName, baseSalary: dto.baseSalary ?? 10000000 },
+        });
+        resolvedPosId = pos.id;
+      }
+
       const user = await tx.user.create({
         data: {
           name: dto.name.trim(),
@@ -205,7 +234,7 @@ export class EmployeeService {
       const employee = await tx.employee.create({
         data: {
           userId: user.id,
-          nik: dto.nik?.trim() ?? null,
+          nik: dto.nik?.trim() || `KRB-${Date.now().toString().slice(-4)}`,
           phone: dto.phone?.trim() ?? null,
           address: dto.address?.trim() ?? null,
           birthDate: dto.birthDate ? new Date(dto.birthDate) : null,
@@ -215,9 +244,9 @@ export class EmployeeService {
             : null,
           leaveQuota: dto.leaveQuota ?? 12,
           status: dto.status ?? 'PROBATION',
-          departmentId: dto.departmentId ?? null,
-          positionId: dto.positionId ?? null,
-          managerId: dto.managerId ?? null,
+          departmentId: resolvedDeptId,
+          positionId: resolvedPosId,
+          managerId: dto.managerId ?? defaultManager?.id ?? null,
         },
         include: EMPLOYEE_INCLUDE,
       });

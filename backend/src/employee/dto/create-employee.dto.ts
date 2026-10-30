@@ -66,7 +66,15 @@ export class CreateEmployeeDto {
 
   @IsOptional()
   @IsString()
+  departmentName?: string;
+
+  @IsOptional()
+  @IsString()
   positionId?: string;
+
+  @IsOptional()
+  @IsString()
+  positionName?: string;
 
   @IsOptional()
   @IsString()

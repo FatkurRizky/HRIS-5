@@ -4,6 +4,8 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
   Post,
   Request,
   UseGuards,
@@ -37,5 +39,16 @@ export class AuthController {
     @Request() request: { user: { id: string; email: string; role: Role } },
   ) {
     return request.user;
+  }
+
+  @Get('users')
+  findAllUsers() {
+    return this.authService.findAllUsers();
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch('users/:id/role')
+  updateUserRole(@Param('id') id: string, @Body('role') role: Role) {
+    return this.authService.updateUserRole(id, role);
   }
 }

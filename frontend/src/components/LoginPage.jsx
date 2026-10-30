@@ -61,7 +61,7 @@ export default function LoginPage() {
     name: '',
     employeeId: 'KRB-0142',
     dept: 'Engineering',
-    email: 'nama@kerabat.id',
+    email: '',
     password: '',
     confirmPassword: '',
     agree: true,
@@ -155,20 +155,57 @@ export default function LoginPage() {
     }
   }
 
-  // Handle Register submission (Page 2)
-  const handleRegisterSubmit = (e) => {
+  // Handle Register submission (Page 2) -> Simpan nyata ke MariaDB via POST /auth/register
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault()
-    if (!regForm.name) {
-      setErrorMessage('Nama lengkap tidak boleh kosong.')
+    if (!regForm.name.trim() || regForm.name.trim().length < 3) {
+      setErrorMessage('Nama lengkap minimal 3 karakter.')
+      return
+    }
+    if (!regForm.email.trim() || regForm.email.trim() === 'nama@kerabat.id') {
+      setErrorMessage('Mohon masukkan email kerja yang valid.')
+      return
+    }
+    if (!regForm.password || regForm.password.length < 8) {
+      setErrorMessage('Kata sandi minimal 8 karakter.')
+      return
+    }
+    if (regForm.password !== regForm.confirmPassword) {
+      setErrorMessage('Konfirmasi kata sandi tidak cocok.')
       return
     }
     if (!regForm.agree) {
       setErrorMessage('Anda harus menyetujui kebijakan privasi perusahaan.')
       return
     }
-    triggerToast('success', 'Akun Berhasil Dibuat!', 'Silakan masuk menggunakan akun baru Anda.')
-    setIsRegistering(false)
-    setEmail(regForm.email || 'nama@kerabat.id')
+
+    setStatus('loading')
+    setErrorMessage('')
+
+    try {
+      await api.post('/auth/register', {
+        name: regForm.name.trim(),
+        email: regForm.email.trim().toLowerCase(),
+        password: regForm.password,
+        employeeId: regForm.employeeId.trim(),
+        department: regForm.dept,
+      })
+
+      setStatus('idle')
+      setEmail(regForm.email.trim().toLowerCase())
+      setPassword(regForm.password)
+      setIsRegistering(false)
+      triggerToast(
+        'success',
+        'Akun Berhasil Tersimpan di Database!',
+        `Akun ${regForm.email.trim().toLowerCase()} telah terdaftar. Silakan klik Masuk.`
+      )
+    } catch (err) {
+      setStatus('error')
+      const backendMsg = err.response?.data?.message
+      const formattedMsg = Array.isArray(backendMsg) ? backendMsg.join(', ') : backendMsg
+      setErrorMessage(formattedMsg || 'Gagal mendaftarkan akun ke database. Pastikan server backend aktif.')
+    }
   }
 
   const handleLogout = () => {
@@ -188,13 +225,14 @@ export default function LoginPage() {
   // - SuperAdmin: Pages 14, 15, 16 (Cyber Midnight Dark Theme)
   // =========================================================================
   if (currentUser) {
-    if (currentUser.role === 'Manager') {
+    const r = String(currentUser.role || '').toUpperCase()
+    if (r === 'MANAGER') {
       return <ManagerPortal currentUser={currentUser} onLogout={handleLogout} />
     }
-    if (currentUser.role === 'HR') {
+    if (r === 'HR') {
       return <HRPortal currentUser={currentUser} onLogout={handleLogout} />
     }
-    if (currentUser.role === 'SuperAdmin') {
+    if (r === 'SUPERADMIN' || r === 'SUPER_ADMIN') {
       return <SuperAdminPortal currentUser={currentUser} onLogout={handleLogout} />
     }
     return <EmployeePortal currentUser={currentUser} onLogout={handleLogout} />
@@ -555,9 +593,10 @@ export default function LoginPage() {
 
                 <button
                   type="submit"
-                  className="w-full py-3.5 rounded-lg bg-[#173e3b] hover:bg-[#123330] text-white font-bold text-sm shadow-sm transition cursor-pointer mt-2"
+                  disabled={status === 'loading'}
+                  className="w-full py-3.5 rounded-lg bg-[#173e3b] hover:bg-[#123330] text-white font-bold text-sm shadow-sm transition cursor-pointer mt-2 disabled:opacity-60"
                 >
-                  Buat akun
+                  {status === 'loading' ? 'Mendaftarkan...' : 'Buat akun'}
                 </button>
 
                 <div className="text-center pt-2">
