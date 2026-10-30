@@ -84,6 +84,13 @@ export default function HRPortal({ currentUser, onLogout }) {
     { id: 2, type: 'Izin', dates: '9 Okt', status: 'Disetujui' },
   ])
 
+  // Rekap absensi bulanan (data nyata dari backend)
+  const nowDate = new Date()
+  const [recapMonth, setRecapMonth] = useState(nowDate.getMonth() + 1)
+  const [recapYear, setRecapYear] = useState(nowDate.getFullYear())
+  const [recapRows, setRecapRows] = useState([])
+  const [recapLoading, setRecapLoading] = useState(false)
+
   // Antrean persetujuan cuti Layer 2 (sudah disetujui Manager)
   const [hrLeaveQueue, setHrLeaveQueue] = useState([])
   const [processingLeaveId, setProcessingLeaveId] = useState(null)
@@ -189,6 +196,43 @@ export default function HRPortal({ currentUser, onLogout }) {
   useEffect(() => {
     fetchBackendEmployees()
   }, [fetchBackendEmployees])
+
+  const LATE_PENALTY = 100000 // harus sama dengan LATE_PENALTY_PER_DAY di backend
+
+  const fetchAttendanceRecap = useCallback(async () => {
+    setRecapLoading(true)
+    try {
+      await ensureHrToken()
+      const res = await api.get('/attendance/recap', {
+        params: { month: recapMonth, year: recapYear },
+      })
+      setRecapRows(Array.isArray(res.data) ? res.data : [])
+    } catch (err) {
+      console.warn('Gagal memuat rekap absensi:', err)
+      setRecapRows([])
+    } finally {
+      setRecapLoading(false)
+    }
+  }, [ensureHrToken, recapMonth, recapYear])
+
+  useEffect(() => {
+    fetchAttendanceRecap()
+  }, [fetchAttendanceRecap])
+
+  const exportRecapCsv = () => {
+    const header = ['Nama', 'Email', 'Departemen', 'Hadir', 'Telat', 'Alpa', 'Cuti/Izin', 'Lembur (jam)', 'Potongan Telat (Rp)']
+    const lines = recapRows.map((r) => [
+      r.name, r.email, r.department ?? '-', r.summary.present, r.summary.late,
+      r.summary.alpha, r.summary.leave, r.summary.overtimeHours, r.summary.late * LATE_PENALTY,
+    ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
+    const blob = new Blob([[header.join(','), ...lines].join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `rekap_absensi_${recapYear}-${String(recapMonth).padStart(2, '0')}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   // Ambil antrean persetujuan cuti Layer 2 dari backend
   const fetchHrLeaveQueue = useCallback(async () => {
@@ -1077,6 +1121,82 @@ export default function HRPortal({ currentUser, onLogout }) {
                     <div className="text-xs text-stone-500 mt-0.5">Terlambat bulan ini</div>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Rekap Absensi Bulanan (HR) */}
+            <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs mt-6">
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                <div>
+                  <h3 className="text-sm font-bold text-stone-900">Rekap absensi bulanan</h3>
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    Telat dipotong Rp100.000 per hari. Data diambil langsung dari absensi karyawan.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <select
+                    value={recapMonth}
+                    onChange={(e) => setRecapMonth(Number(e.target.value))}
+                    className="bg-[#f4f3ef] border border-stone-200 rounded-lg px-3 py-2 outline-none"
+                  >
+                    {['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].map((m, i) => (
+                      <option key={m} value={i + 1}>{m}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    value={recapYear}
+                    onChange={(e) => setRecapYear(Number(e.target.value))}
+                    className="w-20 bg-[#f4f3ef] border border-stone-200 rounded-lg px-3 py-2 outline-none"
+                  />
+                  <button
+                    onClick={exportRecapCsv}
+                    disabled={recapRows.length === 0}
+                    className="px-3 py-2 rounded-lg bg-[#0f3832] hover:bg-[#14473f] text-white font-bold disabled:opacity-50 cursor-pointer"
+                  >
+                    Unduh CSV
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left">
+                  <thead>
+                    <tr className="text-stone-500 border-b border-stone-200">
+                      <th className="py-2 pr-3 font-semibold">Karyawan</th>
+                      <th className="py-2 px-2 font-semibold text-center">Hadir</th>
+                      <th className="py-2 px-2 font-semibold text-center">Telat</th>
+                      <th className="py-2 px-2 font-semibold text-center">Alpa</th>
+                      <th className="py-2 px-2 font-semibold text-center">Cuti/Izin</th>
+                      <th className="py-2 px-2 font-semibold text-center">Lembur (jam)</th>
+                      <th className="py-2 pl-2 font-semibold text-right">Potongan telat</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recapLoading ? (
+                      <tr><td colSpan="7" className="py-4 text-stone-400">Memuat rekap...</td></tr>
+                    ) : recapRows.length === 0 ? (
+                      <tr><td colSpan="7" className="py-4 text-stone-400">Belum ada data absensi pada periode ini.</td></tr>
+                    ) : (
+                      recapRows.map((r) => (
+                        <tr key={r.employeeId} className="border-b border-stone-100">
+                          <td className="py-2.5 pr-3">
+                            <div className="font-bold text-stone-900">{r.name}</div>
+                            <div className="text-stone-500">{r.department ?? '-'}</div>
+                          </td>
+                          <td className="py-2.5 px-2 text-center">{r.summary.present}</td>
+                          <td className="py-2.5 px-2 text-center text-[#b86d1a] font-semibold">{r.summary.late}</td>
+                          <td className="py-2.5 px-2 text-center text-[#c44d27] font-semibold">{r.summary.alpha}</td>
+                          <td className="py-2.5 px-2 text-center">{r.summary.leave}</td>
+                          <td className="py-2.5 px-2 text-center">{r.summary.overtimeHours}</td>
+                          <td className="py-2.5 pl-2 text-right font-semibold">
+                            Rp {(r.summary.late * LATE_PENALTY).toLocaleString('id-ID')}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
