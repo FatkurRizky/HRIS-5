@@ -2,14 +2,72 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateOfficeLocationDto } from './dto/create-office-location.dto.js';
 import { UpdateOfficeLocationDto } from './dto/update-office-location.dto.js';
+import { DEFAULT_KAMPUS_UNP_LOCATION } from './office-location.constants.js';
+
+export { DEFAULT_KAMPUS_UNP_LOCATION };
 
 @Injectable()
-export class OfficeLocationService {
+export class OfficeLocationService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    const existingKampus = await this.prisma.officeLocation.findUnique({
+      where: { name: DEFAULT_KAMPUS_UNP_LOCATION.name },
+    });
+
+    if (existingKampus) {
+      await this.prisma.officeLocation.updateMany({
+        where: { id: { not: existingKampus.id } },
+        data: { isActive: false },
+      });
+      await this.prisma.officeLocation.update({
+        where: { id: existingKampus.id },
+        data: {
+          latitude: DEFAULT_KAMPUS_UNP_LOCATION.latitude,
+          longitude: DEFAULT_KAMPUS_UNP_LOCATION.longitude,
+          radius:
+            !existingKampus.radius || existingKampus.radius === 300
+              ? DEFAULT_KAMPUS_UNP_LOCATION.radius
+              : existingKampus.radius,
+          isActive: true,
+        },
+      });
+      return;
+    }
+
+    const firstExisting = await this.prisma.officeLocation.findFirst({
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (firstExisting) {
+      await this.prisma.officeLocation.updateMany({
+        where: { id: { not: firstExisting.id } },
+        data: { isActive: false },
+      });
+      await this.prisma.officeLocation.update({
+        where: { id: firstExisting.id },
+        data: {
+          name: DEFAULT_KAMPUS_UNP_LOCATION.name,
+          latitude: DEFAULT_KAMPUS_UNP_LOCATION.latitude,
+          longitude: DEFAULT_KAMPUS_UNP_LOCATION.longitude,
+          radius: DEFAULT_KAMPUS_UNP_LOCATION.radius,
+          isActive: true,
+        },
+      });
+    } else {
+      await this.prisma.officeLocation.create({
+        data: {
+          ...DEFAULT_KAMPUS_UNP_LOCATION,
+          isActive: true,
+        },
+      });
+    }
+  }
 
   async findAll() {
     return this.prisma.officeLocation.findMany({
@@ -44,7 +102,7 @@ export class OfficeLocationService {
         name,
         latitude: dto.latitude,
         longitude: dto.longitude,
-        radius: dto.radius ?? 50,
+        radius: dto.radius ?? 200,
         isActive: dto.isActive ?? true,
       },
     });

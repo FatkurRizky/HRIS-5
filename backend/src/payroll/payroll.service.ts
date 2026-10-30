@@ -8,47 +8,32 @@ import type { Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { GeneratePayrollDto } from './dto/generate-payroll.dto.js';
 import { RevisePayrollDto } from './dto/revise-payroll.dto.js';
+import {
+  buildPayslipFilename,
+  calculatePayrollBreakdown,
+  COMPANY_SLIP_NAME,
+  EMPLOYEE_PAYROLL_INCLUDE,
+  MONTH_NAMES,
+  normalizePeriod,
+} from './payroll-calculator.js';
 import { buildPayslipPdfBuffer } from './pdf-builder.js';
-
-const LATE_PENALTY_PER_DAY = 100000; // Potongan gaji Rp100.000 per hari terlambat
-const WORK_DAYS_PER_MONTH = 22;
-const BPJS_EMPLOYEE_RATE = 0.03; // 1% Kesehatan + 2% Ketenagakerjaan
-const MONTHLY_PTKP = 4500000;
-const PPH21_RATE = 0.05;
-
-const MONTH_NAMES = [
-  'Januari',
-  'Februari',
-  'Maret',
-  'April',
-  'Mei',
-  'Juni',
-  'Juli',
-  'Agustus',
-  'September',
-  'Oktober',
-  'November',
-  'Desember',
-];
 
 @Injectable()
 export class PayrollService {
   constructor(private readonly prisma: PrismaService) {}
 
   async generatePayroll(dto: GeneratePayrollDto) {
-    const { month, year } = dto;
-    const startDate = new Date(Date.UTC(year, month - 1, 1));
-    const endDate = new Date(Date.UTC(year, month, 0));
+    const { month, year, startDate, endDate, periodLabel } = normalizePeriod(
+      dto.month,
+      dto.year,
+    );
 
     const employees = await this.prisma.employee.findMany({
       include: {
-        user: { select: { id: true, name: true, email: true } },
-        position: true,
+        ...EMPLOYEE_PAYROLL_INCLUDE,
         salary: true,
         attendances: {
-          where: {
-            date: { gte: startDate, lte: endDate },
-          },
+          where: { date: { gte: startDate, lte: endDate } },
         },
       },
     });
@@ -56,14 +41,18 @@ export class PayrollService {
     const results = [];
 
     for (const emp of employees) {
-      const existingRecord = await this.prisma.payrollRecord.findUnique({
-        where: {
-          employeeId_periodMonth_periodYear: {
-            employeeId: emp.id,
-            periodMonth: month,
-            periodYear: year,
-          },
+      const calc = calculatePayrollBreakdown(emp, emp.attendances);
+      const uniqueWhere = {
+        employeeId_periodMonth_periodYear: {
+          employeeId: emp.id,
+          periodMonth: month,
+          periodYear: year,
         },
+      };
+
+      const existingRecord = await this.prisma.payrollRecord.findUnique({
+        where: uniqueWhere,
+        include: { employee: { include: EMPLOYEE_PAYROLL_INCLUDE } },
       });
 
       // Jangan timpa record yang sudah APPROVED atau PAID
@@ -72,95 +61,79 @@ export class PayrollService {
         (existingRecord.status === 'APPROVED' ||
           existingRecord.status === 'PAID')
       ) {
-        results.push(existingRecord);
+        results.push({
+          ...existingRecord,
+          overtimeHours: calc.overtimeHours,
+          lateCount: calc.lateCount,
+          lateDeduction: calc.lateDeduction,
+          alphaCount: calc.alphaCount,
+          alphaDeduction: calc.alphaDeduction,
+        });
         continue;
       }
 
-      const baseSalary =
-        emp.salary?.baseSalary ?? emp.position?.baseSalary ?? 0;
-      const allowance = emp.salary?.allowance ?? 0;
-      const overtimeRate =
-        emp.salary?.overtimeRate && emp.salary.overtimeRate > 0
-          ? emp.salary.overtimeRate
-          : Math.round(baseSalary / 173);
-
-      let lateCount = 0;
-      let alphaCount = 0;
-      let totalOvertimeMinutes = 0;
-
-      for (const att of emp.attendances) {
-        if (att.status === 'LATE') lateCount++;
-        else if (att.status === 'ALPHA') alphaCount++;
-        totalOvertimeMinutes += att.overtimeMinutes;
-      }
-
-      const overtimeHours = Math.floor(totalOvertimeMinutes / 60);
-      const overtime = overtimeHours * overtimeRate;
-
-      const lateDeduction = lateCount * LATE_PENALTY_PER_DAY;
-      const alphaDeduction =
-        alphaCount * Math.round(baseSalary / WORK_DAYS_PER_MONTH);
-      const deductions = lateDeduction + alphaDeduction;
-
-      const bpjs = Math.round((baseSalary + allowance) * BPJS_EMPLOYEE_RATE);
-      const grossIncome = baseSalary + allowance + overtime;
-      const taxableIncome = Math.max(0, grossIncome - MONTHLY_PTKP);
-      const pph21 = Math.round(taxableIncome * PPH21_RATE);
-
-      const total = Math.max(
-        0,
-        grossIncome - (deductions + bpjs + pph21),
-      );
+      const payload = {
+        baseSalary: calc.baseSalary,
+        allowance: calc.allowance,
+        overtime: calc.overtime,
+        deductions: calc.deductions,
+        bpjs: calc.bpjs,
+        pph21: calc.pph21,
+        total: calc.total,
+        status: 'DRAFT' as const,
+      };
 
       const saved = await this.prisma.payrollRecord.upsert({
-        where: {
-          employeeId_periodMonth_periodYear: {
-            employeeId: emp.id,
-            periodMonth: month,
-            periodYear: year,
-          },
-        },
-        update: {
-          baseSalary,
-          allowance,
-          overtime,
-          deductions,
-          bpjs,
-          pph21,
-          total,
-          status: 'DRAFT',
-        },
+        where: uniqueWhere,
+        update: payload,
         create: {
           employeeId: emp.id,
           periodMonth: month,
           periodYear: year,
-          baseSalary,
-          allowance,
-          overtime,
-          deductions,
-          bpjs,
-          pph21,
-          total,
-          status: 'DRAFT',
+          ...payload,
         },
-        include: {
-          employee: {
-            include: {
-              user: { select: { id: true, name: true, email: true } },
-              department: true,
-              position: true,
-            },
-          },
-        },
+        include: { employee: { include: EMPLOYEE_PAYROLL_INCLUDE } },
       });
 
-      results.push(saved);
+      results.push({
+        ...saved,
+        overtimeHours: calc.overtimeHours,
+        lateCount: calc.lateCount,
+        lateDeduction: calc.lateDeduction,
+        alphaCount: calc.alphaCount,
+        alphaDeduction: calc.alphaDeduction,
+      });
     }
 
     return {
-      message: `Kalkulasi payroll periode ${MONTH_NAMES[month - 1]} ${year} berhasil diproses`,
+      message: `Kalkulasi payroll periode ${periodLabel} berhasil diproses`,
       count: results.length,
       records: results,
+    };
+  }
+
+  async approvePeriod(dto: GeneratePayrollDto) {
+    const { month, year, periodLabel } = normalizePeriod(dto.month, dto.year);
+
+    const existingCount = await this.prisma.payrollRecord.count({
+      where: { periodMonth: month, periodYear: year },
+    });
+
+    if (existingCount === 0) {
+      await this.generatePayroll({ month, year });
+    }
+
+    const updated = await this.prisma.payrollRecord.updateMany({
+      where: { periodMonth: month, periodYear: year, status: 'DRAFT' },
+      data: { status: 'APPROVED', revisionNote: null },
+    });
+
+    const records = await this.findAll(month, year);
+
+    return {
+      message: `Payroll periode ${periodLabel} berhasil disetujui (${updated.count} slip diperbarui)`,
+      approvedCount: updated.count,
+      records,
     };
   }
 
@@ -169,15 +142,11 @@ export class PayrollService {
     if (month) where.periodMonth = month;
     if (year) where.periodYear = year;
 
-    return this.prisma.payrollRecord.findMany({
+    const records = await this.prisma.payrollRecord.findMany({
       where,
       include: {
         employee: {
-          include: {
-            user: { select: { id: true, name: true, email: true } },
-            department: true,
-            position: true,
-          },
+          include: { ...EMPLOYEE_PAYROLL_INCLUDE, salary: true },
         },
       },
       orderBy: [
@@ -186,6 +155,31 @@ export class PayrollService {
         { createdAt: 'desc' },
       ],
     });
+
+    return Promise.all(
+      records.map(async (record) => {
+        const { startDate, endDate } = normalizePeriod(
+          record.periodMonth,
+          record.periodYear,
+        );
+        const attendances = await this.prisma.attendance.findMany({
+          where: {
+            employeeId: record.employeeId,
+            date: { gte: startDate, lte: endDate },
+          },
+          select: { status: true, overtimeMinutes: true },
+        });
+        const calc = calculatePayrollBreakdown(record.employee, attendances);
+        return {
+          ...record,
+          overtimeHours: calc.overtimeHours,
+          lateCount: calc.lateCount,
+          lateDeduction: calc.lateDeduction,
+          alphaCount: calc.alphaCount,
+          alphaDeduction: calc.alphaDeduction,
+        };
+      }),
+    );
   }
 
   async findMyPayrolls(userId: string) {
@@ -203,30 +197,133 @@ export class PayrollService {
     });
   }
 
+  /**
+   * Mengambil slip gaji karyawan pada periode (bulan & tahun) tertentu.
+   * Jika HR belum men-generate payroll pada bulan tersebut (misal karyawan baru
+   * atau melihat proyeksi gaji bulan selanjutnya), sistem menghitung estimasi
+   * real-time dari gaji pokok, tunjangan, dan absensi berjalan.
+   */
+  async findMyPeriodSlip(userId: string, month?: number, year?: number) {
+    const {
+      month: m,
+      year: y,
+      startDate,
+      endDate,
+      periodLabel,
+    } = normalizePeriod(month, year);
+
+    const employee = await this.prisma.employee.findUnique({
+      where: { userId },
+      include: {
+        ...EMPLOYEE_PAYROLL_INCLUDE,
+        salary: true,
+        attendances: {
+          where: { date: { gte: startDate, lte: endDate } },
+        },
+      },
+    });
+
+    if (!employee) {
+      throw new NotFoundException('Profil karyawan belum terdaftar');
+    }
+
+    const calc = calculatePayrollBreakdown(employee, employee.attendances);
+    const existingRecord = await this.prisma.payrollRecord.findUnique({
+      where: {
+        employeeId_periodMonth_periodYear: {
+          employeeId: employee.id,
+          periodMonth: m,
+          periodYear: y,
+        },
+      },
+    });
+
+    const employeeSummary = {
+      id: employee.id,
+      nik: employee.nik ?? '-',
+      name: employee.user.name,
+      email: employee.user.email,
+      department: employee.department?.name ?? 'Engineering',
+      position: employee.position?.name ?? 'Staff',
+      status: employee.status,
+    };
+
+    return {
+      id: existingRecord?.id ?? null,
+      periodMonth: m,
+      periodYear: y,
+      periodLabel,
+      isEstimated: !existingRecord,
+      status: existingRecord ? existingRecord.status : 'ESTIMASI',
+      revisionNote: existingRecord?.revisionNote ?? null,
+      baseSalary: existingRecord?.baseSalary ?? calc.baseSalary,
+      allowance: existingRecord?.allowance ?? calc.allowance,
+      overtimeHours: calc.overtimeHours,
+      overtime: existingRecord?.overtime ?? calc.overtime,
+      lateCount: calc.lateCount,
+      lateDeduction: calc.lateDeduction,
+      alphaCount: calc.alphaCount,
+      alphaDeduction: calc.alphaDeduction,
+      deductions: existingRecord?.deductions ?? calc.deductions,
+      bpjs: existingRecord?.bpjs ?? calc.bpjs,
+      pph21: existingRecord?.pph21 ?? calc.pph21,
+      total: existingRecord?.total ?? calc.total,
+      employee: employeeSummary,
+    };
+  }
+
+  async generateMyPeriodPayslipPdf(
+    userId: string,
+    month?: number,
+    year?: number,
+  ) {
+    const slip = await this.findMyPeriodSlip(userId, month, year);
+
+    const pdfBuffer = buildPayslipPdfBuffer({
+      companyName: COMPANY_SLIP_NAME,
+      periodLabel: slip.periodLabel,
+      employeeName: slip.employee.name,
+      nik: slip.employee.nik,
+      department: slip.employee.department,
+      position: slip.employee.position,
+      status: slip.employee.status,
+      baseSalary: slip.baseSalary,
+      allowance: slip.allowance,
+      overtime: slip.overtime,
+      deductions: slip.deductions,
+      bpjs: slip.bpjs,
+      pph21: slip.pph21,
+      total: slip.total,
+      payrollStatus: slip.isEstimated ? 'ESTIMASI BERJALAN' : slip.status,
+    });
+
+    const filename = buildPayslipFilename(
+      slip.employee.name,
+      slip.periodMonth,
+      slip.periodYear,
+    );
+
+    return { pdfBuffer, filename };
+  }
+
   async findOne(id: string, userId: string, role: Role) {
     const record = await this.prisma.payrollRecord.findUnique({
       where: { id },
-      include: {
-        employee: {
-          include: {
-            user: { select: { id: true, name: true, email: true } },
-            department: true,
-            position: true,
-          },
-        },
-      },
+      include: { employee: { include: EMPLOYEE_PAYROLL_INCLUDE } },
     });
 
     if (!record) {
       throw new NotFoundException('Data payroll tidak ditemukan');
     }
 
-    if (role !== 'HR' && role !== 'SUPER_ADMIN') {
-      if (record.employee.userId !== userId) {
-        throw new ForbiddenException(
-          'Anda tidak berhak melihat slip gaji karyawan lain',
-        );
-      }
+    if (
+      role !== 'HR' &&
+      role !== 'SUPER_ADMIN' &&
+      record.employee.userId !== userId
+    ) {
+      throw new ForbiddenException(
+        'Anda tidak berhak melihat slip gaji karyawan lain',
+      );
     }
 
     return record;
@@ -236,11 +333,7 @@ export class PayrollService {
     const record = await this.prisma.payrollRecord.findUnique({
       where: { id },
     });
-
-    if (!record) {
-      throw new NotFoundException('Data payroll tidak ditemukan');
-    }
-
+    if (!record) throw new NotFoundException('Data payroll tidak ditemukan');
     if (record.status === 'PAID') {
       throw new BadRequestException(
         'Payroll yang sudah dibayar (PAID) tidak dapat diubah',
@@ -249,10 +342,7 @@ export class PayrollService {
 
     return this.prisma.payrollRecord.update({
       where: { id },
-      data: {
-        status: 'APPROVED',
-        revisionNote: null,
-      },
+      data: { status: 'APPROVED', revisionNote: null },
     });
   }
 
@@ -260,11 +350,7 @@ export class PayrollService {
     const record = await this.prisma.payrollRecord.findUnique({
       where: { id },
     });
-
-    if (!record) {
-      throw new NotFoundException('Data payroll tidak ditemukan');
-    }
-
+    if (!record) throw new NotFoundException('Data payroll tidak ditemukan');
     if (record.status === 'PAID') {
       throw new BadRequestException(
         'Payroll yang sudah dibayar (PAID) tidak dapat direvisi',
@@ -284,11 +370,7 @@ export class PayrollService {
     const record = await this.prisma.payrollRecord.findUnique({
       where: { id },
     });
-
-    if (!record) {
-      throw new NotFoundException('Data payroll tidak ditemukan');
-    }
-
+    if (!record) throw new NotFoundException('Data payroll tidak ditemukan');
     if (record.status !== 'APPROVED') {
       throw new BadRequestException(
         'Payroll harus berstatus APPROVED terlebih dahulu sebelum ditandai PAID',
@@ -307,7 +389,7 @@ export class PayrollService {
       MONTH_NAMES[record.periodMonth - 1] ?? String(record.periodMonth);
 
     const pdfBuffer = buildPayslipPdfBuffer({
-      companyName: 'PT KERABAT DIGITAL INDONESIA (HRIS)',
+      companyName: COMPANY_SLIP_NAME,
       periodLabel: `${monthName} ${record.periodYear}`,
       employeeName: record.employee.user.name,
       nik: record.employee.nik ?? '-',
@@ -324,9 +406,11 @@ export class PayrollService {
       payrollStatus: record.status,
     });
 
-    const filename = `slip-gaji-${record.employee.user.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')}-${record.periodMonth}-${record.periodYear}.pdf`;
+    const filename = buildPayslipFilename(
+      record.employee.user.name,
+      record.periodMonth,
+      record.periodYear,
+    );
 
     return { pdfBuffer, filename };
   }

@@ -20,6 +20,23 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
+  /**
+   * Membuat kode karyawan berurutan: KRB-0001, KRB-0002, dst.
+   * Mengambil nomor tertinggi yang sudah ada lalu menambah 1.
+   */
+  private async generateEmployeeCode(): Promise<string> {
+    const rows = await this.prisma.employee.findMany({
+      where: { nik: { startsWith: 'KRB-' } },
+      select: { nik: true },
+    });
+    let max = 0;
+    for (const row of rows) {
+      const match = /^KRB-(\d+)$/.exec(row.nik ?? '');
+      if (match) max = Math.max(max, Number(match[1]));
+    }
+    return `KRB-${String(max + 1).padStart(4, '0')}`;
+  }
+
   async register(dto: RegisterDto) {
     const email = dto.email.trim().toLowerCase();
 
@@ -33,14 +50,8 @@ export class AuthService {
 
     const passwordHash = await hash(dto.password, SALT_ROUNDS);
 
-    // Pastikan NIK unik (gunakan employeeId dari form jika belum terpakai, atau buat otomatis)
-    let nikToUse = dto.employeeId?.trim() || `KRB-${Date.now().toString().slice(-4)}`;
-    const existingNik = await this.prisma.employee.findUnique({
-      where: { nik: nikToUse },
-    });
-    if (existingNik) {
-      nikToUse = `${nikToUse}-${Date.now().toString().slice(-3)}`;
-    }
+    // ID karyawan dibuat otomatis oleh sistem (KRB-0001, KRB-0002, ...)
+    const nikToUse = await this.generateEmployeeCode();
 
     const deptName = dto.department?.trim() || 'Engineering';
     const defaultPosName = deptName === 'HR' ? 'HR Specialist' : 'Staff Engineer';

@@ -15,6 +15,7 @@ export class RegisterDto {
   @MaxLength(72)
   password: string;
 
+  /** @deprecated Diabaikan. ID karyawan dibuat otomatis oleh sistem. */
   @IsOptional()
   @IsString()
   @MaxLength(50)

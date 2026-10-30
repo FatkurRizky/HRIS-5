@@ -31,6 +31,12 @@ export class PayrollController {
   }
 
   @Roles('HR', 'SUPER_ADMIN')
+  @Post('approve-period')
+  approvePeriod(@Body() dto: GeneratePayrollDto) {
+    return this.payrollService.approvePeriod(dto);
+  }
+
+  @Roles('HR', 'SUPER_ADMIN')
   @Get()
   findAll(@Query('month') month?: string, @Query('year') year?: string) {
     return this.payrollService.findAll(
@@ -42,6 +48,42 @@ export class PayrollController {
   @Get('my')
   findMyPayrolls(@Request() req: { user: { id: string } }) {
     return this.payrollService.findMyPayrolls(req.user.id);
+  }
+
+  @Get('my/period')
+  findMyPeriodSlip(
+    @Request() req: { user: { id: string } },
+    @Query('month') month?: string,
+    @Query('year') year?: string,
+  ) {
+    return this.payrollService.findMyPeriodSlip(
+      req.user.id,
+      month ? Number(month) : undefined,
+      year ? Number(year) : undefined,
+    );
+  }
+
+  @Get('my/payslip-pdf')
+  async downloadMyPeriodPayslipPdf(
+    @Request() req: { user: { id: string } },
+    @Res() res: Response,
+    @Query('month') month?: string,
+    @Query('year') year?: string,
+  ) {
+    const { pdfBuffer, filename } =
+      await this.payrollService.generateMyPeriodPayslipPdf(
+        req.user.id,
+        month ? Number(month) : undefined,
+        year ? Number(year) : undefined,
+      );
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': pdfBuffer.length,
+    });
+
+    res.end(pdfBuffer);
   }
 
   @Get(':id/payslip-pdf')

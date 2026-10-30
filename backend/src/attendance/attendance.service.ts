@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import type { AttendanceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { DEFAULT_KAMPUS_UNP_LOCATION } from '../office-location/office-location.constants.js';
 import { ClockAttendanceDto } from './dto/clock-attendance.dto.js';
 
 const EARTH_RADIUS_METERS = 6371000;
@@ -70,11 +71,20 @@ export class AttendanceService {
       where: { isActive: true },
     });
 
-    if (activeLocations.length === 0) {
-      return { office: null, distanceMeters: 0 };
-    }
+    const locationsToCheck =
+      activeLocations.length > 0
+        ? activeLocations
+        : [
+            {
+              id: 'default-kampus-2-unp',
+              ...DEFAULT_KAMPUS_UNP_LOCATION,
+              isActive: true,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          ];
 
-    let nearestOffice = activeLocations[0];
+    let nearestOffice = locationsToCheck[0];
     let minDistance = this.calculateHaversineDistance(
       latitude,
       longitude,
@@ -82,8 +92,8 @@ export class AttendanceService {
       nearestOffice.longitude,
     );
 
-    for (let i = 1; i < activeLocations.length; i++) {
-      const loc = activeLocations[i];
+    for (let i = 1; i < locationsToCheck.length; i++) {
+      const loc = locationsToCheck[i];
       const dist = this.calculateHaversineDistance(
         latitude,
         longitude,
