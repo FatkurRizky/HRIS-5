@@ -7,6 +7,11 @@ import {
 import type { AttendanceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DEFAULT_KAMPUS_UNP_LOCATION } from '../office-location/office-location.constants.js';
+import {
+  calculatePayrollBreakdown,
+  EMPLOYEE_PAYROLL_INCLUDE,
+  normalizePeriod,
+} from '../payroll/payroll-calculator.js';
 import { ClockAttendanceDto } from './dto/clock-attendance.dto.js';
 
 const EARTH_RADIUS_METERS = 6371000;
@@ -16,6 +21,65 @@ const WORK_END_HOUR = 17; // 17:00
 @Injectable()
 export class AttendanceService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Menghitung waktu zona WIB (Asia/Jakarta, UTC+7) secara akurat tanpa terpengaruh perbedaan TZ server.
+   */
+  getWibDate(date = new Date()): Date {
+    const utc = date.getTime() + date.getTimezoneOffset() * 60000;
+    return new Date(utc + 7 * 3600000);
+  }
+
+  /**
+   * Sinkronisasi kalkulasi payroll jika sudah dibuat draft pada periode berjalan.
+   */
+  private async syncEmployeeDraftPayroll(employeeId: string, date: Date) {
+    const month = date.getUTCMonth() + 1;
+    const year = date.getUTCFullYear();
+
+    const draftPayroll = await this.prisma.payrollRecord.findUnique({
+      where: {
+        employeeId_periodMonth_periodYear: {
+          employeeId,
+          periodMonth: month,
+          periodYear: year,
+        },
+      },
+    });
+
+    if (draftPayroll && draftPayroll.status !== 'PAID') {
+      const { startDate, endDate } = normalizePeriod(month, year);
+      const fullEmployee = await this.prisma.employee.findUnique({
+        where: { id: employeeId },
+        include: {
+          ...EMPLOYEE_PAYROLL_INCLUDE,
+          salary: true,
+          attendances: {
+            where: { date: { gte: startDate, lte: endDate } },
+          },
+        },
+      });
+
+      if (fullEmployee) {
+        const calc = calculatePayrollBreakdown(
+          fullEmployee,
+          fullEmployee.attendances,
+        );
+        await this.prisma.payrollRecord.update({
+          where: { id: draftPayroll.id },
+          data: {
+            baseSalary: calc.baseSalary,
+            allowance: calc.allowance,
+            overtime: calc.overtime,
+            deductions: calc.deductions,
+            bpjs: calc.bpjs,
+            pph21: calc.pph21,
+            total: calc.total,
+          },
+        });
+      }
+    }
+  }
 
   /**
    * Menghitung jarak 2 koordinat GPS dalam satuan meter menggunakan Haversine Formula.
@@ -58,8 +122,9 @@ export class AttendanceService {
   }
 
   private getTodayDateOnly(now = new Date()): Date {
+    const wibNow = this.getWibDate(now);
     return new Date(
-      Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()),
+      Date.UTC(wibNow.getFullYear(), wibNow.getMonth(), wibNow.getDate()),
     );
   }
 
@@ -150,6 +215,7 @@ export class AttendanceService {
     );
 
     const now = new Date();
+    const wibNow = this.getWibDate(now);
     const today = this.getTodayDateOnly(now);
 
     const existing = await this.prisma.attendance.findUnique({
@@ -165,10 +231,10 @@ export class AttendanceService {
       throw new ConflictException('Anda sudah melakukan clock-in hari ini');
     }
 
-    // Status LATE jika lewat jam 08:00:59
+    // Status LATE jika lewat jam 08:00:59 WIB
     const isLate =
-      now.getHours() > WORK_START_HOUR ||
-      (now.getHours() === WORK_START_HOUR && now.getMinutes() > 0);
+      wibNow.getHours() > WORK_START_HOUR ||
+      (wibNow.getHours() === WORK_START_HOUR && wibNow.getMinutes() > 0);
 
     const status: AttendanceStatus = isLate ? 'LATE' : 'PRESENT';
 
@@ -182,6 +248,8 @@ export class AttendanceService {
         status,
       },
     });
+
+    await this.syncEmployeeDraftPayroll(employee.id, today);
 
     return {
       message:
@@ -204,6 +272,7 @@ export class AttendanceService {
     );
 
     const now = new Date();
+    const wibNow = this.getWibDate(now);
     const today = this.getTodayDateOnly(now);
 
     const existing = await this.prisma.attendance.findUnique({
@@ -225,14 +294,14 @@ export class AttendanceService {
       throw new ConflictException('Anda sudah melakukan clock-out hari ini');
     }
 
-    // Hitung lembur (overtime) jika pulang lewat jam 17:00
-    const workEndTime = new Date(now);
+    // Hitung lembur (overtime) jika pulang lewat jam 17:00 WIB
+    const workEndTime = new Date(wibNow);
     workEndTime.setHours(WORK_END_HOUR, 0, 0, 0);
 
     let overtimeMinutes = 0;
-    if (now > workEndTime) {
+    if (wibNow > workEndTime) {
       overtimeMinutes = Math.floor(
-        (now.getTime() - workEndTime.getTime()) / (1000 * 60),
+        (wibNow.getTime() - workEndTime.getTime()) / (1000 * 60),
       );
     }
 
@@ -245,6 +314,8 @@ export class AttendanceService {
         overtimeMinutes,
       },
     });
+
+    await this.syncEmployeeDraftPayroll(employee.id, today);
 
     return {
       message: 'Clock-out berhasil dicatat',
@@ -265,6 +336,8 @@ export class AttendanceService {
       },
     });
 
+    await this.syncEmployeeDraftPayroll(employee.id, today);
+
     return { message: 'Presensi hari ini berhasil di-reset' };
   }
 
@@ -273,8 +346,7 @@ export class AttendanceService {
     const where: Record<string, unknown> = { employeeId: employee.id };
 
     if (month && year) {
-      const startDate = new Date(Date.UTC(year, month - 1, 1));
-      const endDate = new Date(Date.UTC(year, month, 0));
+      const { startDate, endDate } = normalizePeriod(month, year);
       where.date = { gte: startDate, lte: endDate };
     }
 
@@ -358,8 +430,7 @@ export class AttendanceService {
       throw new BadRequestException('Parameter month (1-12) dan year wajib valid');
     }
 
-    const startDate = new Date(Date.UTC(year, month - 1, 1));
-    const endDate = new Date(Date.UTC(year, month, 0));
+    const { startDate, endDate } = normalizePeriod(month, year);
 
     const employees = await this.prisma.employee.findMany({
       include: {

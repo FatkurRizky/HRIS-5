@@ -292,7 +292,7 @@ Perhitungan gaji bulanan mengintegrasikan data absensi dan aturan ketenagakerjaa
    $$\text{Total Lembur} = \left\lfloor\frac{\text{Total Menit Lembur}}{60}\right\rfloor \times \text{Tarif Lembur/Jam}$$
 
 2. **Denda & Potongan Absensi:**
-   - Telat: $\text{Jumlah Telat} \times \text{Rp } 50.000$
+   - Telat: $\text{Jumlah Telat} \times \text{Rp } 100.000$
    - Mangkir (Alpha): $\text{Jumlah Alpha} \times \text{round}\left(\frac{\text{Gaji Pokok}}{22}\right)$
 
 3. **BPJS Ketenagakerjaan & Kesehatan (Porsi Karyawan):**

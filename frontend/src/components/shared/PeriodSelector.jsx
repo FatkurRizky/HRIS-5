@@ -1,5 +1,6 @@
 import { MONTH_NAMES } from '../../lib/constants'
 import { shiftMonthPeriod } from '../../lib/formatters'
+import { IconChevronLeft, IconChevronRight } from './Icons'
 
 const BASE_YEAR = new Date().getFullYear()
 
@@ -34,9 +35,9 @@ export default function PeriodSelector({
         type="button"
         onClick={() => handleShift(-1)}
         title="Lihat bulan sebelumnya"
-        className={`px-2.5 py-2 rounded-lg border font-bold text-stone-700 hover:bg-stone-100 transition cursor-pointer ${inputBg}`}
+        className={`px-2.5 py-2 rounded-lg border font-bold text-stone-700 hover:bg-stone-100 transition cursor-pointer flex items-center justify-center ${inputBg}`}
       >
-        ◀
+        <IconChevronLeft className="w-3.5 h-3.5" />
       </button>
 
       <select
@@ -67,13 +68,14 @@ export default function PeriodSelector({
         type="button"
         onClick={() => handleShift(1)}
         title="Lihat gaji bulan selanjutnya"
-        className={`px-3 py-2 rounded-lg border font-bold transition cursor-pointer ${
+        className={`px-3 py-2 rounded-lg border font-bold transition cursor-pointer inline-flex items-center gap-1 ${
           isEmerald
             ? 'bg-[#0f3832]/10 border-[#0f3832]/20 text-[#0f3832] hover:bg-[#0f3832]/15'
             : 'bg-[#fef3eb] border-[#f0d8c4] text-[#c44d27] hover:bg-[#fce8d8]'
         }`}
       >
-        Bulan depan ▶
+        <span>Bulan depan</span>
+        <IconChevronRight className="w-3.5 h-3.5" />
       </button>
     </div>
   )

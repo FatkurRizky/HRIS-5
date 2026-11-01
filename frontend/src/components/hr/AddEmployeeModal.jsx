@@ -2,6 +2,7 @@ import { useState } from 'react'
 import api from '../../lib/api'
 import { AVATAR_COLORS } from '../../lib/constants'
 import { getInitials, formatStatusLabel } from '../../lib/formatters'
+import { IconX } from '../shared/Icons'
 
 const INITIAL_FORM = {
   name: '',
@@ -143,9 +144,10 @@ export default function AddEmployeeModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-stone-300 hover:text-white text-lg font-bold cursor-pointer"
+            className="text-stone-300 hover:text-white p-1 rounded-lg hover:bg-white/10 transition cursor-pointer"
+            aria-label="Tutup modal"
           >
-            ✕
+            <IconX className="w-5 h-5" />
           </button>
         </div>
 

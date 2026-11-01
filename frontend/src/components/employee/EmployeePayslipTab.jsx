@@ -5,7 +5,13 @@ import { downloadBlob } from '../../lib/formatters'
 import PeriodSelector from '../shared/PeriodSelector'
 import PayslipCard from '../shared/PayslipCard'
 
-function buildFallbackSlip(employeeProfile, currentUser, month, year) {
+function buildFallbackSlip(
+  employeeProfile,
+  currentUser,
+  month,
+  year,
+  attendances = []
+) {
   const baseSalary =
     employeeProfile?.salary?.baseSalary ??
     employeeProfile?.position?.baseSalary ??
@@ -14,6 +20,14 @@ function buildFallbackSlip(employeeProfile, currentUser, month, year) {
   const bpjs = Math.round((baseSalary + allowance) * 0.03)
   const taxable = Math.max(0, baseSalary + allowance - 4500000)
   const pph21 = Math.round(taxable * 0.05)
+
+  const monthPrefix = `${year}-${String(month).padStart(2, '0')}`
+  const monthAttendances = attendances.filter(
+    (a) => a.date && a.date.startsWith(monthPrefix)
+  )
+  const lateCount = monthAttendances.filter((a) => a.status === 'LATE').length
+  const lateDeduction = lateCount * 100000
+  const deductions = lateDeduction
 
   return {
     id: null,
@@ -26,13 +40,14 @@ function buildFallbackSlip(employeeProfile, currentUser, month, year) {
     allowance,
     overtimeHours: 0,
     overtime: 0,
-    lateCount: 0,
-    lateDeduction: 0,
+    lateCount,
+    lateDeduction,
     alphaCount: 0,
     alphaDeduction: 0,
+    deductions,
     bpjs,
     pph21,
-    total: Math.max(0, baseSalary + allowance - bpjs - pph21),
+    total: Math.max(0, baseSalary + allowance - (deductions + bpjs + pph21)),
     employee: {
       name: employeeProfile?.user?.name || currentUser?.name || 'Karyawan',
       position: employeeProfile?.position?.name || 'Staff',
@@ -50,6 +65,7 @@ export default function EmployeePayslipTab({
   employeeProfile,
   ensureToken,
   showToast,
+  attendances = [],
 }) {
   const [period, setPeriod] = useState(() => {
     const now = new Date()
@@ -73,13 +89,14 @@ export default function EmployeePayslipTab({
           employeeProfile,
           currentUser,
           period.month,
-          period.year
+          period.year,
+          attendances
         )
       )
     } finally {
       setLoadingSlip(false)
     }
-  }, [ensureToken, period.month, period.year, employeeProfile, currentUser])
+  }, [ensureToken, period.month, period.year, employeeProfile, currentUser, attendances])
 
   useEffect(() => {
     fetchPeriodSlip()
@@ -118,7 +135,13 @@ export default function EmployeePayslipTab({
 
   const activeSlip =
     slip ||
-    buildFallbackSlip(employeeProfile, currentUser, period.month, period.year)
+    buildFallbackSlip(
+      employeeProfile,
+      currentUser,
+      period.month,
+      period.year,
+      attendances
+    )
 
   return (
     <div className="bg-white rounded-2xl border border-[#ece7de] p-6 shadow-xs">

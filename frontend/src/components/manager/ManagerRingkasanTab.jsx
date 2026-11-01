@@ -4,21 +4,12 @@
 export default function ManagerRingkasanTab({
   pendingCount,
   teamCount,
-  onLogout,
 }) {
   return (
     <>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-stone-900">Tim Engineering</h2>
-        <div className="flex items-center gap-4">
-          <span className="text-xs font-medium text-stone-500">Selasa, 20 Oktober 2026</span>
-          <button
-            onClick={onLogout}
-            className="px-3.5 py-1.5 rounded-lg bg-white border border-stone-200 hover:border-rose-200 hover:bg-rose-50 text-xs font-bold text-stone-700 hover:text-rose-600 transition shadow-2xs cursor-pointer"
-          >
-            Keluar
-          </button>
-        </div>
+        <span className="text-xs font-medium text-stone-500">Selasa, 20 Oktober 2026</span>
       </div>
 
       {/* 4 Stat Cards Row */}

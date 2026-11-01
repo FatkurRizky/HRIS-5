@@ -8,6 +8,11 @@ import {
   toIsoDateStr,
 } from '../lib/calendarUtils'
 import CalendarPopupGrid from './shared/CalendarPopupGrid'
+import {
+  IconCalendar,
+  IconCalendarCheck,
+  IconArrowLeftRight,
+} from './shared/Icons'
 
 /**
  * Pemilih rentang tanggal cuti interaktif bergaya pemesanan tiket KAI (Mulai ⇄ Selesai).
@@ -132,7 +137,7 @@ export default function TrainCalendarPicker({
             }`}
           >
             <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-1">
-              <span>📅</span>
+              <IconCalendar className="w-3.5 h-3.5 text-[#c44d27]" />
               <span>Tanggal Mulai Cuti</span>
             </div>
             {startDate ? (
@@ -148,7 +153,7 @@ export default function TrainCalendarPicker({
 
           <div className="sm:col-span-1 flex sm:flex-col items-center justify-center py-0.5">
             <div className="w-7 h-7 rounded-full bg-[#fef3eb] border border-[#f5d0b8] text-[#c44d27] flex items-center justify-center text-xs font-bold shadow-2xs">
-              ⇄
+              <IconArrowLeftRight className="w-3.5 h-3.5" />
             </div>
           </div>
 
@@ -165,7 +170,7 @@ export default function TrainCalendarPicker({
             }`}
           >
             <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-1">
-              <span>🏁</span>
+              <IconCalendarCheck className="w-3.5 h-3.5 text-[#c44d27]" />
               <span>Tanggal Selesai Cuti</span>
             </div>
             {endDate ? (

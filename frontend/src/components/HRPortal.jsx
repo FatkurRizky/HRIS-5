@@ -12,6 +12,13 @@ import HRKaryawanTab from './hr/HRKaryawanTab'
 import HRAbsensiTab from './hr/HRAbsensiTab'
 import HRCutiTab from './hr/HRCutiTab'
 import HRPayrollTab from './hr/HRPayrollTab'
+import {
+  IconDashboard,
+  IconUsers,
+  IconMapPin,
+  IconCalendar,
+  IconCreditCard,
+} from './shared/Icons'
 
 const INITIAL_EMPLOYEES = [
   { id: 'emp-1', init: 'BP', name: 'Bima Pratama', email: 'bima@kerabat.id', role: 'Backend Developer', dept: 'Engineering', status: 'Tetap', bg: 'bg-[#0f3832]' },
@@ -22,11 +29,11 @@ const INITIAL_EMPLOYEES = [
 ]
 
 const NAV_ITEMS = [
-  { id: 'beranda', icon: '⊞', label: 'Beranda' },
-  { id: 'karyawan', icon: '👥', label: 'Karyawan' },
-  { id: 'absensi', icon: '📍', label: 'Absensi' },
-  { id: 'cuti', icon: '📅', label: 'Cuti' },
-  { id: 'payroll', icon: '💳', label: 'Payroll' },
+  { id: 'beranda', Icon: IconDashboard, label: 'Beranda' },
+  { id: 'karyawan', Icon: IconUsers, label: 'Karyawan' },
+  { id: 'absensi', Icon: IconMapPin, label: 'Absensi' },
+  { id: 'cuti', Icon: IconCalendar, label: 'Cuti' },
+  { id: 'payroll', Icon: IconCreditCard, label: 'Payroll' },
 ]
 
 export default function HRPortal({ currentUser, onLogout }) {
@@ -165,6 +172,7 @@ export default function HRPortal({ currentUser, onLogout }) {
           <nav className="flex flex-col gap-1.5 text-xs">
             {NAV_ITEMS.map((item) => {
               const isActive = activeTab === item.id
+              const NavIcon = item.Icon
               return (
                 <button
                   key={item.id}
@@ -175,7 +183,7 @@ export default function HRPortal({ currentUser, onLogout }) {
                       : 'text-stone-300 font-semibold hover:bg-white/10'
                   }`}
                 >
-                  <span>{item.icon}</span>
+                  <NavIcon className="w-4 h-4 shrink-0" />
                   <span>{item.label}</span>
                 </button>
               )

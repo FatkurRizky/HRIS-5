@@ -7,6 +7,12 @@ import SuperAdminPortal from './SuperAdminPortal'
 import AuthHeroPanel from './auth/AuthHeroPanel'
 import LoginFormView from './auth/LoginFormView'
 import RegisterFormView from './auth/RegisterFormView'
+import {
+  IconCheckCircle,
+  IconAlertTriangle,
+  IconInfo,
+  IconX,
+} from './shared/Icons'
 
 // 4 User Personas according to desain_UI.pdf
 const DEMO_ACCOUNTS = [
@@ -261,12 +267,14 @@ export default function LoginPage() {
       {toast && (
         <div className="fixed top-6 right-6 z-50 max-w-sm w-full transition-all duration-300">
           <div className="p-4 rounded-xl shadow-2xl border flex items-start space-x-3 bg-white text-stone-800 border-stone-200">
-            <span className="text-lg mt-0.5">
-              {toast.type === 'success'
-                ? '✅'
-                : toast.type === 'error'
-                  ? '⚠️'
-                  : 'ℹ️'}
+            <span className="mt-0.5 shrink-0">
+              {toast.type === 'success' ? (
+                <IconCheckCircle className="w-5 h-5 text-[#1b7a43]" />
+              ) : toast.type === 'error' ? (
+                <IconAlertTriangle className="w-5 h-5 text-rose-600" />
+              ) : (
+                <IconInfo className="w-5 h-5 text-[#285a84]" />
+              )}
             </span>
             <div className="flex-1">
               <h4 className="text-sm font-bold text-[#112a27]">
@@ -278,9 +286,10 @@ export default function LoginPage() {
             </div>
             <button
               onClick={() => setToast(null)}
-              className="text-stone-400 hover:text-stone-600 text-sm font-bold ml-2 cursor-pointer"
+              className="text-stone-400 hover:text-stone-600 p-0.5 ml-2 cursor-pointer"
+              aria-label="Tutup notifikasi"
             >
-              ✕
+              <IconX className="w-4 h-4" />
             </button>
           </div>
         </div>

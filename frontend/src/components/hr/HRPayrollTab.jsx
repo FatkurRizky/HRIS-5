@@ -8,6 +8,7 @@ import {
 } from '../../lib/formatters'
 import PeriodSelector from '../shared/PeriodSelector'
 import PayslipCard from '../shared/PayslipCard'
+import { IconCheck } from '../shared/Icons'
 
 function getStatusPill(status) {
   if (status === 'PAID') {
@@ -226,29 +227,47 @@ export default function HRPayrollTab({ ensureToken, showToast }) {
 
       {/* Stepper Status */}
       <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-xs mb-6 flex items-center justify-between text-xs font-semibold px-6 sm:px-8 flex-wrap gap-2">
-        <span className="text-[#1b7a43] font-bold">✓ Draft dihitung</span>
+        <span className="text-[#1b7a43] font-bold inline-flex items-center gap-1.5">
+          <IconCheck className="w-3.5 h-3.5" />
+          <span>Draft dihitung</span>
+        </span>
         <span
-          className={
+          className={`inline-flex items-center gap-1.5 ${
             !allApproved
               ? 'text-[#0f3832] font-bold'
               : 'text-[#1b7a43] font-bold'
-          }
+          }`}
         >
-          {allApproved ? '✓ Ditinjau HR' : '● Ditinjau HR'}
+          {allApproved ? (
+            <IconCheck className="w-3.5 h-3.5" />
+          ) : (
+            <span className="w-2 h-2 rounded-full bg-[#0f3832]" />
+          )}
+          <span>Ditinjau HR</span>
         </span>
         <span
-          className={
-            allApproved
-              ? 'text-[#1b7a43] font-bold'
-              : 'text-stone-400'
-          }
+          className={`inline-flex items-center gap-1.5 ${
+            allApproved ? 'text-[#1b7a43] font-bold' : 'text-stone-400'
+          }`}
         >
-          {allApproved ? '✓ Disetujui HR' : '○ Disetujui HR'}
+          {allApproved ? (
+            <IconCheck className="w-3.5 h-3.5" />
+          ) : (
+            <span className="w-2 h-2 rounded-full border border-stone-400" />
+          )}
+          <span>Disetujui HR</span>
         </span>
         <span
-          className={allPaid ? 'text-[#1b7a43] font-bold' : 'text-stone-400'}
+          className={`inline-flex items-center gap-1.5 ${
+            allPaid ? 'text-[#1b7a43] font-bold' : 'text-stone-400'
+          }`}
         >
-          {allPaid ? '✓ Dicairkan' : '○ Dicairkan'}
+          {allPaid ? (
+            <IconCheck className="w-3.5 h-3.5" />
+          ) : (
+            <span className="w-2 h-2 rounded-full border border-stone-400" />
+          )}
+          <span>Dicairkan</span>
         </span>
       </div>
 
@@ -348,9 +367,10 @@ export default function HRPayrollTab({ ensureToken, showToast }) {
                 type="button"
                 disabled={actionLoading}
                 onClick={() => handleMarkPaid(selectedRecord)}
-                className="text-[11px] font-bold text-[#1b7a43] hover:underline cursor-pointer disabled:opacity-50"
+                className="text-[11px] font-bold text-[#1b7a43] hover:underline cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
               >
-                Tandai Cair ✓
+                <span>Tandai Cair</span>
+                <IconCheck className="w-3.5 h-3.5" />
               </button>
             )}
           </div>

@@ -21,10 +21,6 @@ export class OfficeLocationService implements OnModuleInit {
     });
 
     if (existingKampus) {
-      await this.prisma.officeLocation.updateMany({
-        where: { id: { not: existingKampus.id } },
-        data: { isActive: false },
-      });
       await this.prisma.officeLocation.update({
         where: { id: existingKampus.id },
         data: {
@@ -45,10 +41,6 @@ export class OfficeLocationService implements OnModuleInit {
     });
 
     if (firstExisting) {
-      await this.prisma.officeLocation.updateMany({
-        where: { id: { not: firstExisting.id } },
-        data: { isActive: false },
-      });
       await this.prisma.officeLocation.update({
         where: { id: firstExisting.id },
         data: {

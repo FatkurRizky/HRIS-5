@@ -66,6 +66,8 @@ export default function EmployeePortal({ currentUser, onLogout }) {
     realCoords,
     gpsLoading,
     detectRealGps,
+    calibrateOfficeToMyGps,
+    resetOfficeToKampusUnp,
     isWithinGeofence,
     clockIn: handleClockIn,
     clockOut: handleClockOut,
@@ -232,6 +234,8 @@ export default function EmployeePortal({ currentUser, onLogout }) {
               realCoords={realCoords}
               gpsLoading={gpsLoading}
               detectRealGps={detectRealGps}
+              calibrateOfficeToMyGps={calibrateOfficeToMyGps}
+              resetOfficeToKampusUnp={resetOfficeToKampusUnp}
               isWithinGeofence={isWithinGeofence}
               variant="warm"
             />
@@ -264,6 +268,7 @@ export default function EmployeePortal({ currentUser, onLogout }) {
             employeeProfile={employeeProfile}
             ensureToken={ensureToken}
             showToast={showToast}
+            attendances={attendances}
           />
         )}
       </main>

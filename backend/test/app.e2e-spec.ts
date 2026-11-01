@@ -111,25 +111,31 @@ describe('HRIS Backend Smoke E2E Tests', () => {
   });
 
   it('POST /attendance/clock-in should validate GPS radius and prevent duplicate clock-in', async () => {
-    // 1. Luar radius (> 50m dari kantor -7.8166, 112.0114) -> 400
+    const activeOffice = await prisma.officeLocation.findFirst({
+      where: { isActive: true },
+    });
+    const officeLat = activeOffice ? activeOffice.latitude : -7.8036003;
+    const officeLng = activeOffice ? activeOffice.longitude : 112.005465;
+
+    // 1. Luar radius (> radius) -> 400
     await request(app.getHttpServer())
       .post('/attendance/clock-in')
       .set('Authorization', `Bearer ${employeeToken}`)
-      .send({ latitude: -7.825, longitude: 112.025 })
+      .send({ latitude: officeLat + 0.05, longitude: officeLng + 0.05 })
       .expect(400);
 
     // 2. Dalam radius kantor -> 201
     await request(app.getHttpServer())
       .post('/attendance/clock-in')
       .set('Authorization', `Bearer ${employeeToken}`)
-      .send({ latitude: -7.8166, longitude: 112.0114 })
+      .send({ latitude: officeLat, longitude: officeLng })
       .expect(201);
 
     // 3. Dobel clock-in di hari yang sama -> 409 Conflict
     await request(app.getHttpServer())
       .post('/attendance/clock-in')
       .set('Authorization', `Bearer ${employeeToken}`)
-      .send({ latitude: -7.8166, longitude: 112.0114 })
+      .send({ latitude: officeLat, longitude: officeLng })
       .expect(409);
   });
 

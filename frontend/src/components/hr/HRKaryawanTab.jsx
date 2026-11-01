@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { getStatusBadgeStyle } from '../../lib/formatters'
+import { IconSearch } from '../shared/Icons'
 
 /**
  * Tab 2 Portal HR: Master Data Karyawan & Struktur Organisasi (Page 10 desain_UI.pdf).
@@ -40,13 +41,16 @@ export default function HRKaryawanTab({ employees, onOpenAddModal }) {
         {/* Table (col-span-2) */}
         <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 shadow-xs overflow-hidden">
           <div className="p-4 border-b border-stone-100">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari nama, email, jabatan, atau departemen"
-              className="w-full bg-[#f4f3ef] border border-stone-200 rounded-xl px-4 py-2.5 text-xs text-stone-800 outline-none focus:border-[#0f3832]"
-            />
+            <div className="relative">
+              <IconSearch className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari nama, email, jabatan, atau departemen"
+                className="w-full bg-[#f4f3ef] border border-stone-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-stone-800 outline-none focus:border-[#0f3832]"
+              />
+            </div>
           </div>
 
           <table className="w-full text-left text-xs">

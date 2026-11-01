@@ -55,12 +55,8 @@ export class PayrollService {
         include: { employee: { include: EMPLOYEE_PAYROLL_INCLUDE } },
       });
 
-      // Jangan timpa record yang sudah APPROVED atau PAID
-      if (
-        existingRecord &&
-        (existingRecord.status === 'APPROVED' ||
-          existingRecord.status === 'PAID')
-      ) {
+      // Jangan timpa record yang sudah PAID
+      if (existingRecord && existingRecord.status === 'PAID') {
         results.push({
           ...existingRecord,
           overtimeHours: calc.overtimeHours,
@@ -80,7 +76,7 @@ export class PayrollService {
         bpjs: calc.bpjs,
         pph21: calc.pph21,
         total: calc.total,
-        status: 'DRAFT' as const,
+        status: (existingRecord?.status ?? 'DRAFT') as 'DRAFT' | 'APPROVED',
       };
 
       const saved = await this.prisma.payrollRecord.upsert({
@@ -115,13 +111,8 @@ export class PayrollService {
   async approvePeriod(dto: GeneratePayrollDto) {
     const { month, year, periodLabel } = normalizePeriod(dto.month, dto.year);
 
-    const existingCount = await this.prisma.payrollRecord.count({
-      where: { periodMonth: month, periodYear: year },
-    });
-
-    if (existingCount === 0) {
-      await this.generatePayroll({ month, year });
-    }
+    // Hitung ulang payroll periode agar potongan keterlambatan & lembur terkini langsung tercatat
+    await this.generatePayroll({ month, year });
 
     const updated = await this.prisma.payrollRecord.updateMany({
       where: { periodMonth: month, periodYear: year, status: 'DRAFT' },
@@ -170,8 +161,41 @@ export class PayrollService {
           select: { status: true, overtimeMinutes: true },
         });
         const calc = calculatePayrollBreakdown(record.employee, attendances);
+        const isPaid = record.status === 'PAID';
+
+        const deductions = isPaid ? record.deductions : calc.deductions;
+        const total = isPaid ? record.total : calc.total;
+        const overtime = isPaid ? record.overtime : calc.overtime;
+        const bpjs = isPaid ? record.bpjs : calc.bpjs;
+        const pph21 = isPaid ? record.pph21 : calc.pph21;
+
+        if (
+          !isPaid &&
+          (record.deductions !== calc.deductions ||
+            record.total !== calc.total ||
+            record.overtime !== calc.overtime ||
+            record.bpjs !== calc.bpjs ||
+            record.pph21 !== calc.pph21)
+        ) {
+          await this.prisma.payrollRecord.update({
+            where: { id: record.id },
+            data: {
+              deductions: calc.deductions,
+              total: calc.total,
+              overtime: calc.overtime,
+              bpjs: calc.bpjs,
+              pph21: calc.pph21,
+            },
+          });
+        }
+
         return {
           ...record,
+          deductions,
+          total,
+          overtime,
+          bpjs,
+          pph21,
           overtimeHours: calc.overtimeHours,
           lateCount: calc.lateCount,
           lateDeduction: calc.lateDeduction,
@@ -191,10 +215,73 @@ export class PayrollService {
       throw new NotFoundException('Profil karyawan belum terdaftar');
     }
 
-    return this.prisma.payrollRecord.findMany({
+    const records = await this.prisma.payrollRecord.findMany({
       where: { employeeId: employee.id },
+      include: {
+        employee: {
+          include: { ...EMPLOYEE_PAYROLL_INCLUDE, salary: true },
+        },
+      },
       orderBy: [{ periodYear: 'desc' }, { periodMonth: 'desc' }],
     });
+
+    return Promise.all(
+      records.map(async (record) => {
+        const { startDate, endDate } = normalizePeriod(
+          record.periodMonth,
+          record.periodYear,
+        );
+        const attendances = await this.prisma.attendance.findMany({
+          where: {
+            employeeId: record.employeeId,
+            date: { gte: startDate, lte: endDate },
+          },
+          select: { status: true, overtimeMinutes: true },
+        });
+        const calc = calculatePayrollBreakdown(record.employee, attendances);
+        const isPaid = record.status === 'PAID';
+
+        const deductions = isPaid ? record.deductions : calc.deductions;
+        const total = isPaid ? record.total : calc.total;
+        const overtime = isPaid ? record.overtime : calc.overtime;
+        const bpjs = isPaid ? record.bpjs : calc.bpjs;
+        const pph21 = isPaid ? record.pph21 : calc.pph21;
+
+        if (
+          !isPaid &&
+          (record.deductions !== calc.deductions ||
+            record.total !== calc.total ||
+            record.overtime !== calc.overtime ||
+            record.bpjs !== calc.bpjs ||
+            record.pph21 !== calc.pph21)
+        ) {
+          await this.prisma.payrollRecord.update({
+            where: { id: record.id },
+            data: {
+              deductions: calc.deductions,
+              total: calc.total,
+              overtime: calc.overtime,
+              bpjs: calc.bpjs,
+              pph21: calc.pph21,
+            },
+          });
+        }
+
+        return {
+          ...record,
+          deductions,
+          total,
+          overtime,
+          bpjs,
+          pph21,
+          overtimeHours: calc.overtimeHours,
+          lateCount: calc.lateCount,
+          lateDeduction: calc.lateDeduction,
+          alphaCount: calc.alphaCount,
+          alphaDeduction: calc.alphaDeduction,
+        };
+      }),
+    );
   }
 
   /**
@@ -238,6 +325,36 @@ export class PayrollService {
       },
     });
 
+    const isPaid = existingRecord?.status === 'PAID';
+    const deductions = isPaid ? existingRecord.deductions : calc.deductions;
+    const total = isPaid ? existingRecord.total : calc.total;
+    const overtime = isPaid ? existingRecord.overtime : calc.overtime;
+    const bpjs = isPaid ? existingRecord.bpjs : calc.bpjs;
+    const pph21 = isPaid ? existingRecord.pph21 : calc.pph21;
+    const baseSalary = existingRecord?.baseSalary ?? calc.baseSalary;
+    const allowance = existingRecord?.allowance ?? calc.allowance;
+
+    if (
+      existingRecord &&
+      !isPaid &&
+      (existingRecord.deductions !== calc.deductions ||
+        existingRecord.total !== calc.total ||
+        existingRecord.overtime !== calc.overtime ||
+        existingRecord.bpjs !== calc.bpjs ||
+        existingRecord.pph21 !== calc.pph21)
+    ) {
+      await this.prisma.payrollRecord.update({
+        where: { id: existingRecord.id },
+        data: {
+          deductions: calc.deductions,
+          total: calc.total,
+          overtime: calc.overtime,
+          bpjs: calc.bpjs,
+          pph21: calc.pph21,
+        },
+      });
+    }
+
     const employeeSummary = {
       id: employee.id,
       nik: employee.nik ?? '-',
@@ -256,18 +373,18 @@ export class PayrollService {
       isEstimated: !existingRecord,
       status: existingRecord ? existingRecord.status : 'ESTIMASI',
       revisionNote: existingRecord?.revisionNote ?? null,
-      baseSalary: existingRecord?.baseSalary ?? calc.baseSalary,
-      allowance: existingRecord?.allowance ?? calc.allowance,
+      baseSalary,
+      allowance,
       overtimeHours: calc.overtimeHours,
-      overtime: existingRecord?.overtime ?? calc.overtime,
+      overtime,
       lateCount: calc.lateCount,
       lateDeduction: calc.lateDeduction,
       alphaCount: calc.alphaCount,
       alphaDeduction: calc.alphaDeduction,
-      deductions: existingRecord?.deductions ?? calc.deductions,
-      bpjs: existingRecord?.bpjs ?? calc.bpjs,
-      pph21: existingRecord?.pph21 ?? calc.pph21,
-      total: existingRecord?.total ?? calc.total,
+      deductions,
+      bpjs,
+      pph21,
+      total,
       employee: employeeSummary,
     };
   }
@@ -309,7 +426,11 @@ export class PayrollService {
   async findOne(id: string, userId: string, role: Role) {
     const record = await this.prisma.payrollRecord.findUnique({
       where: { id },
-      include: { employee: { include: EMPLOYEE_PAYROLL_INCLUDE } },
+      include: {
+        employee: {
+          include: { ...EMPLOYEE_PAYROLL_INCLUDE, salary: true },
+        },
+      },
     });
 
     if (!record) {
@@ -326,12 +447,69 @@ export class PayrollService {
       );
     }
 
-    return record;
+    const { startDate, endDate } = normalizePeriod(
+      record.periodMonth,
+      record.periodYear,
+    );
+    const attendances = await this.prisma.attendance.findMany({
+      where: {
+        employeeId: record.employeeId,
+        date: { gte: startDate, lte: endDate },
+      },
+      select: { status: true, overtimeMinutes: true },
+    });
+    const calc = calculatePayrollBreakdown(record.employee, attendances);
+    const isPaid = record.status === 'PAID';
+
+    const deductions = isPaid ? record.deductions : calc.deductions;
+    const total = isPaid ? record.total : calc.total;
+    const overtime = isPaid ? record.overtime : calc.overtime;
+    const bpjs = isPaid ? record.bpjs : calc.bpjs;
+    const pph21 = isPaid ? record.pph21 : calc.pph21;
+
+    if (
+      !isPaid &&
+      (record.deductions !== calc.deductions ||
+        record.total !== calc.total ||
+        record.overtime !== calc.overtime ||
+        record.bpjs !== calc.bpjs ||
+        record.pph21 !== calc.pph21)
+    ) {
+      await this.prisma.payrollRecord.update({
+        where: { id: record.id },
+        data: {
+          deductions: calc.deductions,
+          total: calc.total,
+          overtime: calc.overtime,
+          bpjs: calc.bpjs,
+          pph21: calc.pph21,
+        },
+      });
+    }
+
+    return {
+      ...record,
+      deductions,
+      total,
+      overtime,
+      bpjs,
+      pph21,
+      overtimeHours: calc.overtimeHours,
+      lateCount: calc.lateCount,
+      lateDeduction: calc.lateDeduction,
+      alphaCount: calc.alphaCount,
+      alphaDeduction: calc.alphaDeduction,
+    };
   }
 
   async approve(id: string) {
     const record = await this.prisma.payrollRecord.findUnique({
       where: { id },
+      include: {
+        employee: {
+          include: { ...EMPLOYEE_PAYROLL_INCLUDE, salary: true },
+        },
+      },
     });
     if (!record) throw new NotFoundException('Data payroll tidak ditemukan');
     if (record.status === 'PAID') {
@@ -340,15 +518,43 @@ export class PayrollService {
       );
     }
 
+    const { startDate, endDate } = normalizePeriod(
+      record.periodMonth,
+      record.periodYear,
+    );
+    const attendances = await this.prisma.attendance.findMany({
+      where: {
+        employeeId: record.employeeId,
+        date: { gte: startDate, lte: endDate },
+      },
+      select: { status: true, overtimeMinutes: true },
+    });
+    const calc = calculatePayrollBreakdown(record.employee, attendances);
+
     return this.prisma.payrollRecord.update({
       where: { id },
-      data: { status: 'APPROVED', revisionNote: null },
+      data: {
+        baseSalary: calc.baseSalary,
+        allowance: calc.allowance,
+        overtime: calc.overtime,
+        deductions: calc.deductions,
+        bpjs: calc.bpjs,
+        pph21: calc.pph21,
+        total: calc.total,
+        status: 'APPROVED',
+        revisionNote: null,
+      },
     });
   }
 
   async revise(id: string, dto: RevisePayrollDto) {
     const record = await this.prisma.payrollRecord.findUnique({
       where: { id },
+      include: {
+        employee: {
+          include: { ...EMPLOYEE_PAYROLL_INCLUDE, salary: true },
+        },
+      },
     });
     if (!record) throw new NotFoundException('Data payroll tidak ditemukan');
     if (record.status === 'PAID') {
@@ -357,9 +563,29 @@ export class PayrollService {
       );
     }
 
+    const { startDate, endDate } = normalizePeriod(
+      record.periodMonth,
+      record.periodYear,
+    );
+    const attendances = await this.prisma.attendance.findMany({
+      where: {
+        employeeId: record.employeeId,
+        date: { gte: startDate, lte: endDate },
+      },
+      select: { status: true, overtimeMinutes: true },
+    });
+    const calc = calculatePayrollBreakdown(record.employee, attendances);
+
     return this.prisma.payrollRecord.update({
       where: { id },
       data: {
+        baseSalary: calc.baseSalary,
+        allowance: calc.allowance,
+        overtime: calc.overtime,
+        deductions: calc.deductions,
+        bpjs: calc.bpjs,
+        pph21: calc.pph21,
+        total: calc.total,
         status: 'DRAFT',
         revisionNote: dto.note?.trim() ?? 'Perlu revisi kalkulasi gaji',
       },

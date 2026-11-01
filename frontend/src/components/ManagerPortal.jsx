@@ -6,6 +6,11 @@ import useToast from '../lib/useToast'
 import ManagerRingkasanTab from './manager/ManagerRingkasanTab'
 import ManagerPersetujuanTab from './manager/ManagerPersetujuanTab'
 import ManagerTimTab from './manager/ManagerTimTab'
+import {
+  IconDashboard,
+  IconCalendarCheck,
+  IconUsers,
+} from './shared/Icons'
 
 const INITIAL_APPROVALS = [
   {
@@ -144,13 +149,14 @@ export default function ManagerPortal({ currentUser, onLogout }) {
           <nav className="flex flex-col gap-1.5">
             <button
               onClick={() => setActiveTab('ringkasan')}
-              className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition cursor-pointer ${
+              className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition flex items-center gap-3 cursor-pointer ${
                 activeTab === 'ringkasan'
                   ? 'bg-[#285a84] text-white shadow-xs'
                   : 'text-stone-700 hover:bg-stone-50'
               }`}
             >
-              Ringkasan
+              <IconDashboard className="w-4 h-4 shrink-0" />
+              <span>Ringkasan</span>
             </button>
 
             <button
@@ -161,7 +167,10 @@ export default function ManagerPortal({ currentUser, onLogout }) {
                   : 'text-stone-700 hover:bg-stone-50'
               }`}
             >
-              <span>Persetujuan</span>
+              <span className="flex items-center gap-3">
+                <IconCalendarCheck className="w-4 h-4 shrink-0" />
+                <span>Persetujuan</span>
+              </span>
               {pendingCount > 0 && (
                 <span className="bg-[#e53e3e] text-white text-xs font-bold px-2 py-0.5 rounded-full">
                   {pendingCount}
@@ -171,20 +180,14 @@ export default function ManagerPortal({ currentUser, onLogout }) {
 
             <button
               onClick={() => setActiveTab('tim')}
-              className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition cursor-pointer ${
+              className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition flex items-center gap-3 cursor-pointer ${
                 activeTab === 'tim'
                   ? 'bg-[#285a84] text-white shadow-xs'
                   : 'text-stone-700 hover:bg-stone-50'
               }`}
             >
-              Tim saya
-            </button>
-
-            <button
-              onClick={onLogout}
-              className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold text-stone-500 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer mt-2"
-            >
-              Keluar
+              <IconUsers className="w-4 h-4 shrink-0" />
+              <span>Tim saya</span>
             </button>
           </nav>
         </div>
@@ -208,7 +211,6 @@ export default function ManagerPortal({ currentUser, onLogout }) {
           <ManagerRingkasanTab
             pendingCount={pendingCount}
             teamCount={teamList.length}
-            onLogout={onLogout}
           />
         )}
 
@@ -216,7 +218,6 @@ export default function ManagerPortal({ currentUser, onLogout }) {
           <ManagerPersetujuanTab
             approvalList={approvalList}
             onAction={handleAction}
-            onLogout={onLogout}
           />
         )}
 
@@ -224,7 +225,6 @@ export default function ManagerPortal({ currentUser, onLogout }) {
           <ManagerTimTab
             managerName={managerName}
             teamList={teamList}
-            onLogout={onLogout}
           />
         )}
       </main>

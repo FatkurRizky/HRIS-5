@@ -1,4 +1,5 @@
 import { KAMPUS_2_UNP_OFFICE } from '../../lib/constants'
+import { IconExternalLink } from './Icons'
 
 /**
  * Kartu radar geofence bersama untuk Portal Karyawan & Portal HR.
@@ -12,6 +13,8 @@ export default function GeofenceRadarCard({
   realCoords,
   gpsLoading,
   detectRealGps,
+  calibrateOfficeToMyGps,
+  resetOfficeToKampusUnp,
   isWithinGeofence,
   variant = 'warm', // 'warm' (Employee) | 'emerald' (HR)
   headerSlot = null,
@@ -19,6 +22,9 @@ export default function GeofenceRadarCard({
 }) {
   const isEmerald = variant === 'emerald'
   const sliderMax = Math.max(400, maxOfficeRadius * 2)
+  const isCustomCalibrated =
+    Math.abs(officeLocation.latitude - KAMPUS_2_UNP_OFFICE.latitude) > 0.0001 ||
+    Math.abs(officeLocation.longitude - KAMPUS_2_UNP_OFFICE.longitude) > 0.0001
 
   // Skala posisi titik relatif terhadap lingkaran radius (di dalam lingkaran bila <= maxOfficeRadius)
   const ratio = maxOfficeRadius > 0 ? simulatedDistance / maxOfficeRadius : 0
@@ -59,19 +65,70 @@ export default function GeofenceRadarCard({
           href={officeLocation.mapsUrl || KAMPUS_2_UNP_OFFICE.mapsUrl}
           target="_blank"
           rel="noreferrer"
-          className={`font-semibold hover:underline ${
+          className={`font-semibold hover:underline inline-flex items-center gap-1 ${
             isEmerald ? 'text-[#0f3832]' : 'text-[#c44d27]'
           }`}
         >
-          Lihat Maps ↗
+          <span>Lihat Maps</span>
+          <IconExternalLink className="w-3 h-3" />
         </a>
         {realCoords && (
           <span className="text-[#1b7a43] font-semibold">
-            • GPS Aktif ({realCoords.latitude.toFixed(5)},{' '}
+            • {realCoords.source || 'GPS Aktif'} ({realCoords.latitude.toFixed(5)},{' '}
             {realCoords.longitude.toFixed(5)})
           </span>
         )}
       </div>
+
+      {/* Panel Status GPS Real & Kalibrasi Titik Kantor */}
+      {(realCoords || isCustomCalibrated) && (
+        <div className="mb-3 p-3 rounded-xl bg-[#f8f7f3] border border-stone-200/90 flex items-center justify-between gap-2 flex-wrap text-[11px]">
+          <div className="text-stone-600">
+            {realCoords ? (
+              <>
+                <span className="font-bold text-stone-800">
+                  {realCoords.source || 'GPS Real'}:
+                </span>{' '}
+                {realCoords.latitude.toFixed(5)}, {realCoords.longitude.toFixed(5)}
+                {!isWithinGeofence && (
+                  <span className="text-rose-600 font-semibold ml-1">
+                    (Di luar radius kantor)
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="font-semibold text-stone-700">
+                Titik kantor dikalibrasi ke lokasi kustom
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {realCoords && !isWithinGeofence && calibrateOfficeToMyGps && (
+              <button
+                type="button"
+                onClick={calibrateOfficeToMyGps}
+                className={`px-2.5 py-1 rounded-lg font-bold text-white transition cursor-pointer shadow-2xs ${
+                  isEmerald
+                    ? 'bg-[#0f3832] hover:bg-[#144941]'
+                    : 'bg-[#c44d27] hover:bg-[#ad411f]'
+                }`}
+              >
+                Set Titik Kantor ke GPS Saya
+              </button>
+            )}
+            {isCustomCalibrated && resetOfficeToKampusUnp && (
+              <button
+                type="button"
+                onClick={resetOfficeToKampusUnp}
+                className="px-2.5 py-1 rounded-lg border border-stone-300 bg-white hover:bg-stone-100 font-bold text-stone-700 transition cursor-pointer"
+              >
+                Reset ke Kampus 2 UNP
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Lingkaran Radar Area Kampus */}
       <div

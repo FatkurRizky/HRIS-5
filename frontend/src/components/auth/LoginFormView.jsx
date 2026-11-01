@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { IconAlertTriangle } from '../shared/Icons'
 
 /**
  * View A: Form Masuk & Pemilih Akun Demo (Page 1 desain_UI.pdf).
@@ -33,7 +34,7 @@ export default function LoginFormView({
 
       {errorMessage && (
         <div className="mb-5 p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs sm:text-sm font-medium flex items-start space-x-2.5">
-          <span className="font-bold text-base leading-none mt-0.5">⚠️</span>
+          <IconAlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
           <span className="flex-1 leading-relaxed">{errorMessage}</span>
         </div>
       )}

@@ -56,7 +56,7 @@ export function normalizePeriod(month?: number, year?: number) {
   }
 
   const startDate = new Date(Date.UTC(y, m - 1, 1));
-  const endDate = new Date(Date.UTC(y, m, 0));
+  const endDate = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
   const periodLabel = `${MONTH_NAMES[m - 1]} ${y}`;
 
   return { month: m, year: y, startDate, endDate, periodLabel };

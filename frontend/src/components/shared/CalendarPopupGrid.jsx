@@ -1,5 +1,10 @@
 import { DAYS_HEADER } from '../../lib/calendarUtils'
 import { MONTH_NAMES } from '../../lib/constants'
+import {
+  IconArrowRight,
+  IconChevronLeft,
+  IconChevronRight,
+} from './Icons'
 
 /**
  * Popup kalender interaktif gaya pemesanan tiket KAI untuk memilih rentang tanggal cuti.
@@ -37,7 +42,9 @@ export default function CalendarPopupGrid({
           >
             1. Pilih Mulai
           </button>
-          <span className="text-stone-300 text-xs">→</span>
+          <span className="text-stone-300 flex items-center">
+            <IconArrowRight className="w-3.5 h-3.5" />
+          </span>
           <button
             type="button"
             onClick={() => setSelectingStep('end')}
@@ -94,7 +101,7 @@ export default function CalendarPopupGrid({
           className="w-8 h-8 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold flex items-center justify-center transition cursor-pointer"
           title="Bulan Sebelumnya"
         >
-          ‹
+          <IconChevronLeft className="w-4 h-4" />
         </button>
         <div className="text-sm font-extrabold text-stone-900 tracking-tight">
           {MONTH_NAMES[viewMonth]} {viewYear}
@@ -105,7 +112,7 @@ export default function CalendarPopupGrid({
           className="w-8 h-8 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold flex items-center justify-center transition cursor-pointer"
           title="Bulan Berikutnya"
         >
-          ›
+          <IconChevronRight className="w-4 h-4" />
         </button>
       </div>
 

@@ -32,6 +32,8 @@ export default function HRAbsensiTab({
     realCoords,
     gpsLoading,
     detectRealGps,
+    calibrateOfficeToMyGps,
+    resetOfficeToKampusUnp,
     isWithinGeofence,
     clockIn: handleHrClockIn,
     clockOut: handleHrClockOut,
@@ -114,6 +116,8 @@ export default function HRAbsensiTab({
           realCoords={realCoords}
           gpsLoading={gpsLoading}
           detectRealGps={detectRealGps}
+          calibrateOfficeToMyGps={calibrateOfficeToMyGps}
+          resetOfficeToKampusUnp={resetOfficeToKampusUnp}
           isWithinGeofence={isWithinGeofence}
           variant="emerald"
           headerSlot={

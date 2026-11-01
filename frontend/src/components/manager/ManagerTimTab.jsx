@@ -1,11 +1,25 @@
+import { useState } from 'react'
+import { IconSearch } from '../shared/Icons'
+
 /**
  * Tab 3 Portal Manager: Daftar anggota tim & sisa kuota cuti (Page 8 desain_UI.pdf).
  */
 export default function ManagerTimTab({
   managerName,
   teamList,
-  onLogout,
 }) {
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const filteredTeam = teamList.filter((member) => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return true
+    return (
+      member.name.toLowerCase().includes(q) ||
+      member.role.toLowerCase().includes(q) ||
+      member.today.toLowerCase().includes(q)
+    )
+  })
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -13,15 +27,22 @@ export default function ManagerTimTab({
           <h2 className="text-2xl font-bold text-stone-900">Tim saya</h2>
           <p className="text-xs text-stone-500 mt-1">{managerName} · Manager Engineering</p>
         </div>
-        <button
-          onClick={onLogout}
-          className="px-3.5 py-1.5 rounded-lg bg-white border border-stone-200 hover:border-rose-200 hover:bg-rose-50 text-xs font-bold text-stone-700 hover:text-rose-600 transition shadow-2xs cursor-pointer"
-        >
-          Keluar
-        </button>
       </div>
 
       <div className="bg-white rounded-2xl border border-stone-200 shadow-xs overflow-hidden">
+        <div className="p-4 border-b border-stone-100">
+          <div className="relative">
+            <IconSearch className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari nama anggota tim, jabatan, atau status kehadiran hari ini..."
+              className="w-full bg-[#f3f6fa] border border-stone-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-stone-800 outline-none focus:border-[#285a84] transition"
+            />
+          </div>
+        </div>
+
         <table className="w-full text-left text-xs">
           <thead className="bg-stone-50 border-b border-stone-200 text-stone-500 font-semibold uppercase tracking-wider text-[11px]">
             <tr>
@@ -34,7 +55,7 @@ export default function ManagerTimTab({
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-100">
-            {teamList.map((member) => (
+            {filteredTeam.map((member) => (
               <tr key={member.id} className="hover:bg-stone-50/50 transition">
                 <td className="py-3.5 px-5 flex items-center gap-3">
                   <div
@@ -59,6 +80,13 @@ export default function ManagerTimTab({
                 </td>
               </tr>
             ))}
+            {filteredTeam.length === 0 && (
+              <tr>
+                <td colSpan="6" className="py-8 text-center text-stone-400">
+                  Tidak ada anggota tim yang cocok dengan pencarian &ldquo;{searchQuery}&rdquo;
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

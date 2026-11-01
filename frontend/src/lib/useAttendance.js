@@ -87,46 +87,193 @@ export default function useAttendance({ ensureToken, notify }) {
     refresh()
   }, [refresh])
 
+  const applyDetectedCoords = useCallback(
+    (latitude, longitude, sourceLabel) => {
+      const lat = Number(latitude)
+      const lon = Number(longitude)
+      const dist = calculateHaversineDistance(
+        lat,
+        lon,
+        officeLocation.latitude,
+        officeLocation.longitude
+      )
+      setRealCoords({
+        latitude: lat,
+        longitude: lon,
+        source: sourceLabel,
+      })
+      setSimulatedDistanceState(dist)
+      setGpsLoading(false)
+      if (dist <= radius) {
+        notify(
+          'success',
+          `GPS (${sourceLabel}) aktif: ${dist}m dari ${officeLocation.name} (Dalam radius <= ${radius}m).`
+        )
+      } else {
+        notify(
+          'info',
+          `GPS (${sourceLabel}) terdeteksi: ${(dist / 1000).toFixed(2)} km (${dist}m) dari ${officeLocation.name}. Klik "Set Titik Kantor ke GPS Saya" jika ingin tes absen di lokasi Anda saat ini.`
+        )
+      }
+    },
+    [notify, officeLocation.latitude, officeLocation.longitude, officeLocation.name, radius]
+  )
+
+  const fetchNetworkGeoFallback = useCallback(
+    async (reasonMsg) => {
+      try {
+        const res = await fetch('https://ipwho.is/')
+        const data = await res.json()
+        if (data && data.success !== false && data.latitude && data.longitude) {
+          const label = data.city
+            ? `Jaringan ISP · ${data.city}`
+            : 'Jaringan ISP'
+          applyDetectedCoords(data.latitude, data.longitude, label)
+          return
+        }
+      } catch {
+        // Lanjut ke fallback ke-2
+      }
+
+      try {
+        const res2 = await fetch('https://get.geojs.io/v1/ip/geo.json')
+        const data2 = await res2.json()
+        if (data2 && data2.latitude && data2.longitude) {
+          const label = data2.city
+            ? `Jaringan ISP · ${data2.city}`
+            : 'Jaringan ISP'
+          applyDetectedCoords(
+            Number(data2.latitude),
+            Number(data2.longitude),
+            label
+          )
+          return
+        }
+      } catch {
+        // Gagal semua
+      }
+
+      setGpsLoading(false)
+      notify(
+        'error',
+        reasonMsg ||
+          'Gagal mengambil lokasi GPS perangkat maupun jaringan. Pastikan koneksi internet & izin lokasi browser aktif.'
+      )
+    },
+    [applyDetectedCoords, notify]
+  )
+
   const detectRealGps = useCallback(() => {
+    setGpsLoading(true)
+
     if (!navigator.geolocation) {
-      notify('error', 'Browser Anda tidak mendukung fitur GPS Geolocation.')
+      fetchNetworkGeoFallback(
+        'Browser tidak mendukung Geolocation API, gagal mengambil lokasi jaringan.'
+      )
       return
     }
-    setGpsLoading(true)
+
+    // Tahap 1: Coba High Accuracy (GPS perangkat / Wi-Fi positioning)
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const { latitude, longitude } = pos.coords
-        const dist = calculateHaversineDistance(
-          latitude,
-          longitude,
-          officeLocation.latitude,
-          officeLocation.longitude
-        )
-        setRealCoords({ latitude, longitude })
-        setSimulatedDistanceState(dist)
-        setGpsLoading(false)
-        if (dist <= radius) {
-          notify(
-            'success',
-            `GPS terdeteksi: ${dist}m dari ${officeLocation.name} (Dalam radius <= ${radius}m).`
-          )
-        } else {
-          notify(
-            'error',
-            `GPS terdeteksi: ${dist}m dari ${officeLocation.name} (Di luar radius ${radius}m, tidak bisa absen).`
-          )
-        }
-      },
-      () => {
-        setGpsLoading(false)
-        notify(
-          'error',
-          'Gagal mengambil lokasi GPS perangkat. Pastikan izin lokasi browser aktif.'
+        applyDetectedCoords(
+          pos.coords.latitude,
+          pos.coords.longitude,
+          'GPS Perangkat'
         )
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      (errHigh) => {
+        // Tahap 2: Di Linux Desktop tanpa modul GPS, enableHighAccuracy sering gagal (code 2/3). Coba mode standar:
+        navigator.geolocation.getCurrentPosition(
+          (posLow) => {
+            applyDetectedCoords(
+              posLow.coords.latitude,
+              posLow.coords.longitude,
+              'GPS Browser'
+            )
+          },
+          () => {
+            // Tahap 3: Fallback otomatis ke Real Network/ISP Geolocation agar di PC Linux tetap jalan
+            const msg =
+              errHigh?.code === 1
+                ? 'Izin lokasi browser ditolak (Blocked).'
+                : 'Sensor GPS perangkat tidak tersedia di OS/Browser ini.'
+            fetchNetworkGeoFallback(msg)
+          },
+          { enableHighAccuracy: false, timeout: 4000, maximumAge: 300000 }
+        )
+      },
+      { enableHighAccuracy: true, timeout: 4000, maximumAge: 60000 }
     )
-  }, [notify, officeLocation.latitude, officeLocation.longitude, officeLocation.name, radius])
+  }, [applyDetectedCoords, fetchNetworkGeoFallback])
+
+  const calibrateOfficeToMyGps = useCallback(async () => {
+    if (!realCoords) return
+    const updatedLoc = {
+      ...officeLocation,
+      name: `Lokasi GPS Saya (${realCoords.source || 'Aktif'})`,
+      latitude: Number(realCoords.latitude.toFixed(6)),
+      longitude: Number(realCoords.longitude.toFixed(6)),
+      mapsUrl: `https://www.google.com/maps?q=${realCoords.latitude},${realCoords.longitude}`,
+    }
+    setOfficeLocation(updatedLoc)
+    setSimulatedDistanceState(0)
+
+    if (officeLocation?.id) {
+      try {
+        await ensureToken()
+        await api.patch(`/office-locations/${officeLocation.id}`, {
+          latitude: updatedLoc.latitude,
+          longitude: updatedLoc.longitude,
+        })
+      } catch (e) {
+        console.warn('Kalibrasi lokal diterapkan:', e)
+      }
+    }
+    notify(
+      'success',
+      'Titik kantor berhasil disinkronkan ke koordinat GPS Anda saat ini (Jarak: 0m). Silakan Clock in!'
+    )
+  }, [ensureToken, notify, officeLocation, realCoords])
+
+  const resetOfficeToKampusUnp = useCallback(async () => {
+    const restored = {
+      ...officeLocation,
+      name: KAMPUS_2_UNP_OFFICE.name,
+      latitude: KAMPUS_2_UNP_OFFICE.latitude,
+      longitude: KAMPUS_2_UNP_OFFICE.longitude,
+      radius: KAMPUS_2_UNP_OFFICE.radius,
+      mapsUrl: KAMPUS_2_UNP_OFFICE.mapsUrl,
+    }
+    setOfficeLocation(restored)
+
+    if (realCoords) {
+      const dist = calculateHaversineDistance(
+        realCoords.latitude,
+        realCoords.longitude,
+        KAMPUS_2_UNP_OFFICE.latitude,
+        KAMPUS_2_UNP_OFFICE.longitude
+      )
+      setSimulatedDistanceState(dist)
+    } else {
+      setSimulatedDistanceState(80)
+    }
+
+    if (officeLocation?.id) {
+      try {
+        await ensureToken()
+        await api.patch(`/office-locations/${officeLocation.id}`, {
+          name: KAMPUS_2_UNP_OFFICE.name,
+          latitude: KAMPUS_2_UNP_OFFICE.latitude,
+          longitude: KAMPUS_2_UNP_OFFICE.longitude,
+          radius: KAMPUS_2_UNP_OFFICE.radius,
+        })
+      } catch (e) {
+        console.warn('Reset lokasi lokal diterapkan:', e)
+      }
+    }
+    notify('info', 'Titik kantor dikembalikan ke Kampus 2 UNP Kediri.')
+  }, [ensureToken, notify, officeLocation, realCoords])
 
   const buildCoords = () => {
     if (realCoords) {
@@ -225,6 +372,8 @@ export default function useAttendance({ ensureToken, notify }) {
     realCoords,
     gpsLoading,
     detectRealGps,
+    calibrateOfficeToMyGps,
+    resetOfficeToKampusUnp,
     isWithinGeofence,
     clockIn,
     clockOut,
