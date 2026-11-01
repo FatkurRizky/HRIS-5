@@ -106,4 +106,107 @@ describe('AttendanceService (Timezone & Late Handling)', () => {
       expect(result.message).toContain('Terlambat');
     });
   });
+
+  describe('clockOut overtime calculation', () => {
+    it('should calculate overtime minutes when clocking out after 17:00 WIB', async () => {
+      prismaMock.employee.findUnique.mockResolvedValue({ id: 'emp-1', userId: 'user-1' });
+      prismaMock.officeLocation.findMany.mockResolvedValue([
+        {
+          id: 'office-1',
+          name: 'Kantor',
+          latitude: -7.8036003,
+          longitude: 112.005465,
+          radius: 200,
+          isActive: true,
+        },
+      ]);
+      prismaMock.attendance.findUnique.mockResolvedValue({
+        id: 'att-1',
+        employeeId: 'emp-1',
+        clockIn: new Date(),
+        clockOut: null,
+      });
+      prismaMock.attendance.update.mockImplementation((args) => Promise.resolve(args.data));
+      prismaMock.payrollRecord.findUnique.mockResolvedValue(null);
+
+      // Force getWibDate to return 18:30 WIB (90 minutes overtime)
+      vi.spyOn(service, 'getWibDate').mockReturnValue(new Date('2026-10-31T18:30:00'));
+
+      const result = await service.clockOut('user-1', {
+        latitude: -7.8036003,
+        longitude: 112.005465,
+      });
+
+      expect(result.attendance.overtimeMinutes).toBe(90);
+      expect(result.message).toContain('Clock-out berhasil');
+    });
+
+    it('should calculate 0 overtime minutes when clocking out before or at 17:00 WIB', async () => {
+      prismaMock.employee.findUnique.mockResolvedValue({ id: 'emp-1', userId: 'user-1' });
+      prismaMock.officeLocation.findMany.mockResolvedValue([
+        {
+          id: 'office-1',
+          name: 'Kantor',
+          latitude: -7.8036003,
+          longitude: 112.005465,
+          radius: 200,
+          isActive: true,
+        },
+      ]);
+      prismaMock.attendance.findUnique.mockResolvedValue({
+        id: 'att-1',
+        employeeId: 'emp-1',
+        clockIn: new Date(),
+        clockOut: null,
+      });
+      prismaMock.attendance.update.mockImplementation((args) => Promise.resolve(args.data));
+      prismaMock.payrollRecord.findUnique.mockResolvedValue(null);
+
+      // Force getWibDate to return 17:00 WIB
+      vi.spyOn(service, 'getWibDate').mockReturnValue(new Date('2026-10-31T17:00:00'));
+
+      const result = await service.clockOut('user-1', {
+        latitude: -7.8036003,
+        longitude: 112.005465,
+      });
+
+      expect(result.attendance.overtimeMinutes).toBe(0);
+    });
+
+    it('should NOT update payroll record if its status is APPROVED or PAID', async () => {
+      prismaMock.employee.findUnique.mockResolvedValue({ id: 'emp-1', userId: 'user-1' });
+      prismaMock.officeLocation.findMany.mockResolvedValue([
+        {
+          id: 'office-1',
+          name: 'Kantor',
+          latitude: -7.8036003,
+          longitude: 112.005465,
+          radius: 200,
+          isActive: true,
+        },
+      ]);
+      prismaMock.attendance.findUnique.mockResolvedValue({
+        id: 'att-1',
+        employeeId: 'emp-1',
+        clockIn: new Date(),
+        clockOut: null,
+      });
+      prismaMock.attendance.update.mockImplementation((args) => Promise.resolve(args.data));
+      // Payroll is already APPROVED
+      prismaMock.payrollRecord.findUnique.mockResolvedValue({
+        id: 'payroll-1',
+        status: 'APPROVED',
+      });
+
+      vi.spyOn(service, 'getWibDate').mockReturnValue(new Date('2026-10-31T17:00:00'));
+
+      await service.clockOut('user-1', {
+        latitude: -7.8036003,
+        longitude: 112.005465,
+      });
+
+      // Must not update approved payroll record
+      expect(prismaMock.payrollRecord.update).not.toHaveBeenCalled();
+    });
+  });
 });

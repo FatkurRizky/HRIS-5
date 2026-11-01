@@ -110,6 +110,23 @@ describe('HRIS Backend Smoke E2E Tests', () => {
     expect(res.body[0].user.password).toBeUndefined();
   });
 
+  it('PATCH /office-locations/:id should forbid Employee (403) and allow HR (200)', async () => {
+    const office = await prisma.officeLocation.findFirst();
+    if (office) {
+      await request(app.getHttpServer())
+        .patch(`/office-locations/${office.id}`)
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({ radius: 250 })
+        .expect(403);
+
+      await request(app.getHttpServer())
+        .patch(`/office-locations/${office.id}`)
+        .set('Authorization', `Bearer ${hrToken}`)
+        .send({ radius: 200 })
+        .expect(200);
+    }
+  });
+
   it('POST /attendance/clock-in should validate GPS radius and prevent duplicate clock-in', async () => {
     const activeOffice = await prisma.officeLocation.findFirst({
       where: { isActive: true },

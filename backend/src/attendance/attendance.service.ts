@@ -47,7 +47,7 @@ export class AttendanceService {
       },
     });
 
-    if (draftPayroll && draftPayroll.status !== 'PAID') {
+    if (draftPayroll && draftPayroll.status === 'DRAFT') {
       const { startDate, endDate } = normalizePeriod(month, year);
       const fullEmployee = await this.prisma.employee.findUnique({
         where: { id: employeeId },
@@ -295,14 +295,14 @@ export class AttendanceService {
     }
 
     // Hitung lembur (overtime) jika pulang lewat jam 17:00 WIB
-    const workEndTime = new Date(wibNow);
-    workEndTime.setHours(WORK_END_HOUR, 0, 0, 0);
-
+    const wibHours = wibNow.getHours();
+    const wibMinutes = wibNow.getMinutes();
     let overtimeMinutes = 0;
-    if (wibNow > workEndTime) {
-      overtimeMinutes = Math.floor(
-        (wibNow.getTime() - workEndTime.getTime()) / (1000 * 60),
-      );
+    if (
+      wibHours > WORK_END_HOUR ||
+      (wibHours === WORK_END_HOUR && wibMinutes > 0)
+    ) {
+      overtimeMinutes = (wibHours - WORK_END_HOUR) * 60 + wibMinutes;
     }
 
     const updated = await this.prisma.attendance.update({

@@ -55,8 +55,12 @@ export class PayrollService {
         include: { employee: { include: EMPLOYEE_PAYROLL_INCLUDE } },
       });
 
-      // Jangan timpa record yang sudah PAID
-      if (existingRecord && existingRecord.status === 'PAID') {
+      // Jangan timpa record yang sudah APPROVED atau PAID
+      if (
+        existingRecord &&
+        (existingRecord.status === 'APPROVED' ||
+          existingRecord.status === 'PAID')
+      ) {
         results.push({
           ...existingRecord,
           overtimeHours: calc.overtimeHours,
@@ -161,16 +165,16 @@ export class PayrollService {
           select: { status: true, overtimeMinutes: true },
         });
         const calc = calculatePayrollBreakdown(record.employee, attendances);
-        const isPaid = record.status === 'PAID';
+        const isDraft = record.status === 'DRAFT';
 
-        const deductions = isPaid ? record.deductions : calc.deductions;
-        const total = isPaid ? record.total : calc.total;
-        const overtime = isPaid ? record.overtime : calc.overtime;
-        const bpjs = isPaid ? record.bpjs : calc.bpjs;
-        const pph21 = isPaid ? record.pph21 : calc.pph21;
+        const deductions = isDraft ? calc.deductions : record.deductions;
+        const total = isDraft ? calc.total : record.total;
+        const overtime = isDraft ? calc.overtime : record.overtime;
+        const bpjs = isDraft ? calc.bpjs : record.bpjs;
+        const pph21 = isDraft ? calc.pph21 : record.pph21;
 
         if (
-          !isPaid &&
+          isDraft &&
           (record.deductions !== calc.deductions ||
             record.total !== calc.total ||
             record.overtime !== calc.overtime ||
@@ -239,16 +243,16 @@ export class PayrollService {
           select: { status: true, overtimeMinutes: true },
         });
         const calc = calculatePayrollBreakdown(record.employee, attendances);
-        const isPaid = record.status === 'PAID';
+        const isDraft = record.status === 'DRAFT';
 
-        const deductions = isPaid ? record.deductions : calc.deductions;
-        const total = isPaid ? record.total : calc.total;
-        const overtime = isPaid ? record.overtime : calc.overtime;
-        const bpjs = isPaid ? record.bpjs : calc.bpjs;
-        const pph21 = isPaid ? record.pph21 : calc.pph21;
+        const deductions = isDraft ? calc.deductions : record.deductions;
+        const total = isDraft ? calc.total : record.total;
+        const overtime = isDraft ? calc.overtime : record.overtime;
+        const bpjs = isDraft ? calc.bpjs : record.bpjs;
+        const pph21 = isDraft ? calc.pph21 : record.pph21;
 
         if (
-          !isPaid &&
+          isDraft &&
           (record.deductions !== calc.deductions ||
             record.total !== calc.total ||
             record.overtime !== calc.overtime ||
@@ -325,18 +329,18 @@ export class PayrollService {
       },
     });
 
-    const isPaid = existingRecord?.status === 'PAID';
-    const deductions = isPaid ? existingRecord.deductions : calc.deductions;
-    const total = isPaid ? existingRecord.total : calc.total;
-    const overtime = isPaid ? existingRecord.overtime : calc.overtime;
-    const bpjs = isPaid ? existingRecord.bpjs : calc.bpjs;
-    const pph21 = isPaid ? existingRecord.pph21 : calc.pph21;
+    const isDraft = !existingRecord || existingRecord.status === 'DRAFT';
+    const deductions = isDraft ? calc.deductions : existingRecord.deductions;
+    const total = isDraft ? calc.total : existingRecord.total;
+    const overtime = isDraft ? calc.overtime : existingRecord.overtime;
+    const bpjs = isDraft ? calc.bpjs : existingRecord.bpjs;
+    const pph21 = isDraft ? calc.pph21 : existingRecord.pph21;
     const baseSalary = existingRecord?.baseSalary ?? calc.baseSalary;
     const allowance = existingRecord?.allowance ?? calc.allowance;
 
     if (
       existingRecord &&
-      !isPaid &&
+      isDraft &&
       (existingRecord.deductions !== calc.deductions ||
         existingRecord.total !== calc.total ||
         existingRecord.overtime !== calc.overtime ||
@@ -459,16 +463,16 @@ export class PayrollService {
       select: { status: true, overtimeMinutes: true },
     });
     const calc = calculatePayrollBreakdown(record.employee, attendances);
-    const isPaid = record.status === 'PAID';
+    const isDraft = record.status === 'DRAFT';
 
-    const deductions = isPaid ? record.deductions : calc.deductions;
-    const total = isPaid ? record.total : calc.total;
-    const overtime = isPaid ? record.overtime : calc.overtime;
-    const bpjs = isPaid ? record.bpjs : calc.bpjs;
-    const pph21 = isPaid ? record.pph21 : calc.pph21;
+    const deductions = isDraft ? calc.deductions : record.deductions;
+    const total = isDraft ? calc.total : record.total;
+    const overtime = isDraft ? calc.overtime : record.overtime;
+    const bpjs = isDraft ? calc.bpjs : record.bpjs;
+    const pph21 = isDraft ? calc.pph21 : record.pph21;
 
     if (
-      !isPaid &&
+      isDraft &&
       (record.deductions !== calc.deductions ||
         record.total !== calc.total ||
         record.overtime !== calc.overtime ||

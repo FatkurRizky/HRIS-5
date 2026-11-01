@@ -282,5 +282,37 @@ describe('PayrollService & Late Deductions', () => {
       expect(list[0].deductions).toBe(100000);
       expect(list[0].total).toBe(11165000);
     });
+
+    it('should NOT update or mutate database when record is already APPROVED', async () => {
+      prismaMock.employee.findUnique.mockResolvedValue({ id: 'emp-1', userId: 'user-1' });
+      prismaMock.payrollRecord.findMany.mockResolvedValue([
+        {
+          id: 'rec-approved',
+          employeeId: 'emp-1',
+          periodMonth: 10,
+          periodYear: 2026,
+          baseSalary: 10000000,
+          allowance: 2000000,
+          overtime: 0,
+          deductions: 50000,
+          bpjs: 360000,
+          pph21: 375000,
+          total: 11215000,
+          status: 'APPROVED',
+          employee: {
+            salary: { baseSalary: 10000000, allowance: 2000000, overtimeRate: 50000 },
+          },
+        },
+      ]);
+      prismaMock.attendance.findMany.mockResolvedValue([
+        { status: 'LATE', overtimeMinutes: 0 },
+      ]);
+
+      const list = await service.findMyPayrolls('user-1');
+
+      expect(list[0].deductions).toBe(50000);
+      expect(list[0].total).toBe(11215000);
+      expect(prismaMock.payrollRecord.update).not.toHaveBeenCalled();
+    });
   });
 });

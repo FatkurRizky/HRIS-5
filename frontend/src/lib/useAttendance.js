@@ -112,7 +112,7 @@ export default function useAttendance({ ensureToken, notify }) {
       } else {
         notify(
           'info',
-          `GPS (${sourceLabel}) terdeteksi: ${(dist / 1000).toFixed(2)} km (${dist}m) dari ${officeLocation.name}. Klik "Set Titik Kantor ke GPS Saya" jika ingin tes absen di lokasi Anda saat ini.`
+          `GPS (${sourceLabel}) terdeteksi: ${(dist / 1000).toFixed(2)} km (${dist}m) dari ${officeLocation.name}. Gunakan slider simulasi (<= ${radius}m) untuk mencoba clock-in.`
         )
       }
     },

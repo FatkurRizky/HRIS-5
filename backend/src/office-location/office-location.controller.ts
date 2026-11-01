@@ -38,7 +38,7 @@ export class OfficeLocationController {
     return this.officeLocationService.create(dto);
   }
 
-  @Roles('SUPER_ADMIN', 'HR', 'MANAGER', 'EMPLOYEE')
+  @Roles('SUPER_ADMIN', 'HR')
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateOfficeLocationDto) {
     return this.officeLocationService.update(id, dto);
