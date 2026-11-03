@@ -43,11 +43,50 @@ export default function RegisterFormView({
 
         <div>
           <label className="block text-[13px] font-bold text-[#142d2a] mb-1.5">
+            Peran / Role
+          </label>
+          <select
+            value={regForm.role || 'EMPLOYEE'}
+            onChange={(e) => {
+              const selectedRole = e.target.value
+              setRegForm((prev) => ({
+                ...prev,
+                role: selectedRole,
+                dept:
+                  selectedRole === 'HR'
+                    ? 'HR'
+                    : prev.dept === 'HR'
+                      ? 'Engineering'
+                      : prev.dept,
+              }))
+            }}
+            className="w-full px-3 py-2.5 rounded-lg bg-[#ede9e2] border border-[#dedad1] text-sm text-[#16302c] outline-none"
+          >
+            <option value="EMPLOYEE">Employee (Karyawan)</option>
+            <option value="HR">HR</option>
+            <option value="MANAGER">Manager</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-[13px] font-bold text-[#142d2a] mb-1.5">
             Departemen
           </label>
           <select
             value={regForm.dept}
-            onChange={(e) => setRegForm({ ...regForm, dept: e.target.value })}
+            onChange={(e) => {
+              const selectedDept = e.target.value
+              setRegForm((prev) => ({
+                ...prev,
+                dept: selectedDept,
+                role:
+                  selectedDept === 'HR'
+                    ? 'HR'
+                    : prev.role === 'HR'
+                      ? 'EMPLOYEE'
+                      : prev.role,
+              }))
+            }}
             className="w-full px-3 py-2.5 rounded-lg bg-[#ede9e2] border border-[#dedad1] text-sm text-[#16302c] outline-none"
           >
             <option value="Engineering">Engineering</option>

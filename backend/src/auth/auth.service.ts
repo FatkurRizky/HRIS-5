@@ -1,5 +1,7 @@
 import {
+  BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -19,6 +21,57 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
   ) {}
+
+  /**
+   * Menentukan role saat registrasi mandiri berdasarkan input role dan departemen.
+   * Mencegah eskalasi hak akses (privilege escalation) ke SUPER_ADMIN.
+   */
+  determineRegistrationRole(requestedRole?: string, department?: string): Role {
+    const normalizedDept = department?.trim().toUpperCase();
+
+    if (requestedRole) {
+      const normalizedRole = requestedRole.trim().toUpperCase();
+      const strippedRole = normalizedRole.replace(/[\s\-_]+/g, '');
+
+      // Cegah eskalasi hak akses ke SUPER_ADMIN atau variasi admin lainnya
+      if (
+        strippedRole.includes('ADMIN') ||
+        strippedRole === 'SUPER' ||
+        strippedRole === 'ROOT'
+      ) {
+        throw new ForbiddenException(
+          'Pendaftaran mandiri dengan role SUPER_ADMIN tidak diizinkan',
+        );
+      }
+
+      if (normalizedRole === 'HR') {
+        return 'HR';
+      }
+
+      if (normalizedRole === 'MANAGER') {
+        return 'MANAGER';
+      }
+
+      if (normalizedRole === 'EMPLOYEE') {
+        // Jika departemen HR, tetapkan role HR
+        if (normalizedDept === 'HR' || normalizedDept === 'HUMAN RESOURCES') {
+          return 'HR';
+        }
+        return 'EMPLOYEE';
+      }
+
+      throw new BadRequestException(
+        `Role '${requestedRole}' tidak valid untuk registrasi mandiri`,
+      );
+    }
+
+    // Jika role tidak dikirimkan, tentukan berdasarkan departemen
+    if (normalizedDept === 'HR' || normalizedDept === 'HUMAN RESOURCES') {
+      return 'HR';
+    }
+
+    return 'EMPLOYEE';
+  }
 
   /**
    * Membuat kode karyawan berurutan: KRB-0001, KRB-0002, dst.
@@ -48,26 +101,45 @@ export class AuthService {
       throw new ConflictException('Email sudah terdaftar di database');
     }
 
+    const assignedRole = this.determineRegistrationRole(
+      dto.role,
+      dto.department,
+    );
+
     const passwordHash = await hash(dto.password, SALT_ROUNDS);
 
     // ID karyawan dibuat otomatis oleh sistem (KRB-0001, KRB-0002, ...)
     const nikToUse = await this.generateEmployeeCode();
 
-    const deptName = dto.department?.trim() || 'Engineering';
-    const defaultPosName = deptName === 'HR' ? 'HR Specialist' : 'Staff Engineer';
+    let deptName = dto.department?.trim();
+    if (!deptName) {
+      deptName = assignedRole === 'HR' ? 'HR' : 'Engineering';
+    } else if (deptName.toUpperCase() === 'HR') {
+      deptName = 'HR';
+    }
+
+    const defaultPosName =
+      assignedRole === 'HR' || deptName === 'HR'
+        ? 'HR Specialist'
+        : assignedRole === 'MANAGER'
+          ? 'Engineering Manager'
+          : 'Staff Engineer';
 
     // Cari manager default agar pengajuan cuti karyawan baru otomatis masuk ke antrean Manager
-    const defaultManager = await this.prisma.employee.findFirst({
-      where: { user: { role: 'MANAGER' } },
-      select: { id: true },
-    });
+    const defaultManager =
+      assignedRole === 'MANAGER'
+        ? null
+        : await this.prisma.employee.findFirst({
+            where: { user: { role: 'MANAGER' } },
+            select: { id: true },
+          });
 
     const user = await this.prisma.user.create({
       data: {
         name: dto.name.trim(),
         email,
         password: passwordHash,
-        role: 'EMPLOYEE',
+        role: assignedRole,
         employee: {
           create: {
             nik: nikToUse,

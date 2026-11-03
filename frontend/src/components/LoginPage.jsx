@@ -13,8 +13,26 @@ import {
   IconInfo,
   IconX,
 } from './shared/Icons'
+import {
+  resolveUserSession,
+  buildRegistrationPayload,
+} from '../lib/authUtils'
 
 // 4 User Personas according to desain_UI.pdf
+const STORAGE_KEY_TOKEN = 'hris_token'
+const STORAGE_KEY_USER = 'hris_user'
+
+function getInitialUser() {
+  try {
+    const token = localStorage.getItem(STORAGE_KEY_TOKEN)
+    const raw = localStorage.getItem(STORAGE_KEY_USER)
+    if (!token || !raw) return null
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
 const DEMO_ACCOUNTS = [
   {
     role: 'Employee',
@@ -86,6 +104,7 @@ export default function LoginPage() {
   const [regForm, setRegForm] = useState({
     name: '',
     dept: 'Engineering',
+    role: 'EMPLOYEE',
     email: '',
     password: '',
     confirmPassword: '',
@@ -94,7 +113,7 @@ export default function LoginPage() {
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [toast, setToast] = useState(null)
-  const [currentUser, setCurrentUser] = useState(null)
+  const [currentUser, setCurrentUser] = useState(getInitialUser)
   const toastTimerRef = useRef(null)
 
   const triggerToast = (type, title, message) => {
@@ -142,26 +161,26 @@ export default function LoginPage() {
         password,
       })
       const token = response.data?.accessToken ?? response.data?.token
-      if (token) localStorage.setItem('hris_token', token)
+      if (token) localStorage.setItem(STORAGE_KEY_TOKEN, token)
 
-      const roleFound = matchedDemo || {
-        role: response.data?.user?.role || 'Employee',
-        label: response.data?.user?.role || 'Karyawan',
-        email,
-        name: response.data?.user?.name || email.split('@')[0],
-        portal: 'Portal HRIS Terintegrasi',
-      }
+      const userSession = resolveUserSession(
+        response.data?.user,
+        matchedDemo,
+        email
+      )
 
+      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(userSession))
       setStatus('success')
-      setCurrentUser(roleFound)
+      setCurrentUser(userSession)
       triggerToast(
         'success',
         'Berhasil Masuk!',
-        `Selamat datang kembali, ${roleFound.name}`
+        `Selamat datang kembali, ${userSession.name}`
       )
     } catch (err) {
       if (matchedDemo && password === 'kerabat123') {
         setStatus('success')
+        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(matchedDemo))
         setCurrentUser(matchedDemo)
         triggerToast(
           'success',
@@ -207,22 +226,19 @@ export default function LoginPage() {
     setErrorMessage('')
 
     try {
-      const res = await api.post('/auth/register', {
-        name: regForm.name.trim(),
-        email: regForm.email.trim().toLowerCase(),
-        password: regForm.password,
-        department: regForm.dept,
-      })
+      const payload = buildRegistrationPayload(regForm)
+      const res = await api.post('/auth/register', payload)
       const assignedNik = res.data?.user?.employee?.nik
 
       setStatus('idle')
-      setEmail(regForm.email.trim().toLowerCase())
-      setPassword(regForm.password)
+      setActiveRole(null)
+      setEmail(payload.email)
+      setPassword(payload.password)
       setIsRegistering(false)
       triggerToast(
         'success',
         'Akun Berhasil Tersimpan di Database!',
-        `Akun ${regForm.email.trim().toLowerCase()}${assignedNik ? ` (${assignedNik})` : ''} telah terdaftar. Silakan klik Masuk.`
+        `Akun ${payload.email}${assignedNik ? ` (${assignedNik})` : ''} telah terdaftar. Silakan klik Masuk.`
       )
     } catch (err) {
       setStatus('error')
@@ -238,7 +254,8 @@ export default function LoginPage() {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('hris_token')
+    localStorage.removeItem(STORAGE_KEY_TOKEN)
+    localStorage.removeItem(STORAGE_KEY_USER)
     setCurrentUser(null)
     setPassword('')
     setActiveRole(null)
