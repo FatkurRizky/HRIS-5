@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ActivityLogModule } from './activity-log/activity-log.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AttendanceModule } from './attendance/attendance.module.js';
@@ -17,6 +18,7 @@ import { SalaryModule } from './salary/salary.module.js';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    ActivityLogModule,
     AuthModule,
     DepartmentModule,
     PositionModule,

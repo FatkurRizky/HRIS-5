@@ -4,22 +4,41 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Role } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
+import { compare, hash } from 'bcryptjs';
+import {
+  ActivityLogService,
+  normalizeClientIp,
+} from '../activity-log/activity-log.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
-import { compare, hash } from 'bcryptjs';
 
 const SALT_ROUNDS = 10;
+const VALID_ROLES: readonly Role[] = [
+  'SUPER_ADMIN',
+  'HR',
+  'MANAGER',
+  'EMPLOYEE',
+];
+
+function formatRoleLabel(role: Role): string {
+  if (role === 'SUPER_ADMIN') return 'SuperAdmin';
+  if (role === 'MANAGER') return 'Manager';
+  if (role === 'HR') return 'HR';
+  return 'Employee';
+}
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    @Optional() private readonly activityLog?: ActivityLogService,
   ) {}
 
   /**
@@ -90,7 +109,7 @@ export class AuthService {
     return `KRB-${String(max + 1).padStart(4, '0')}`;
   }
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto, ipAddress?: string | null) {
     const email = dto.email.trim().toLowerCase();
 
     const existing = await this.prisma.user.findUnique({
@@ -173,6 +192,7 @@ export class AuthService {
         name: true,
         email: true,
         role: true,
+        isActive: true,
         employee: {
           select: {
             id: true,
@@ -187,6 +207,15 @@ export class AuthService {
     const payload = { sub: user.id, email: user.email, role: user.role };
     const accessToken = await this.jwtService.signAsync(payload);
 
+    await this.activityLog?.record({
+      actorUserId: user.id,
+      actorEmail: user.email,
+      action: `Registrasi akun baru (${formatRoleLabel(user.role)})`,
+      category: 'AUTH_REGISTER',
+      level: 'INFO',
+      ipAddress,
+    });
+
     return {
       accessToken,
       user,
@@ -200,6 +229,7 @@ export class AuthService {
         name: true,
         email: true,
         role: true,
+        isActive: true,
         createdAt: true,
         employee: {
           select: {
@@ -215,12 +245,38 @@ export class AuthService {
     });
   }
 
-  async updateUserRole(id: string, role: Role) {
+  async updateUserRole(
+    id: string,
+    role: Role,
+    actor?: { id: string; email: string },
+    ipAddress?: string | null,
+  ) {
+    if (!VALID_ROLES.includes(role)) {
+      throw new BadRequestException('Peran pengguna tidak valid');
+    }
+
     const existing = await this.prisma.user.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('Pengguna tidak ditemukan');
     }
-    return this.prisma.user.update({
+
+    if (
+      existing.role === 'SUPER_ADMIN' &&
+      existing.isActive !== false &&
+      role !== 'SUPER_ADMIN'
+    ) {
+      const activeSuperAdminCount = await this.prisma.user.count({
+        where: { role: 'SUPER_ADMIN', isActive: true },
+      });
+
+      if (activeSuperAdminCount <= 1) {
+        throw new BadRequestException(
+          'Operasi ditolak: Sistem wajib memiliki minimal satu akun SuperAdmin aktif',
+        );
+      }
+    }
+
+    const updated = await this.prisma.user.update({
       where: { id },
       data: { role },
       select: {
@@ -228,28 +284,139 @@ export class AuthService {
         name: true,
         email: true,
         role: true,
+        isActive: true,
       },
     });
+
+    await this.activityLog?.record({
+      actorUserId: actor?.id ?? null,
+      actorEmail: actor?.email ?? 'sistem',
+      action: `Mengubah peran ${updated.email} dari ${formatRoleLabel(existing.role)} menjadi ${formatRoleLabel(updated.role)}`,
+      category: 'USER_ROLE',
+      level: 'INFO',
+      ipAddress,
+    });
+
+    return updated;
   }
 
-  async login(dto: LoginDto) {
+  async updateUserStatus(
+    id: string,
+    isActive: boolean,
+    actor?: { id: string; email: string },
+    ipAddress?: string | null,
+  ) {
+    const existing = await this.prisma.user.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Pengguna tidak ditemukan');
+    }
+
+    if (actor?.id === id && !isActive) {
+      throw new BadRequestException(
+        'Operasi ditolak: Anda tidak dapat menonaktifkan akun Anda sendiri',
+      );
+    }
+
+    if (
+      existing.role === 'SUPER_ADMIN' &&
+      existing.isActive !== false &&
+      !isActive
+    ) {
+      const activeSuperAdminCount = await this.prisma.user.count({
+        where: { role: 'SUPER_ADMIN', isActive: true },
+      });
+
+      if (activeSuperAdminCount <= 1) {
+        throw new BadRequestException(
+          'Operasi ditolak: Sistem wajib memiliki minimal satu akun SuperAdmin aktif',
+        );
+      }
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id },
+      data: { isActive },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+      },
+    });
+
+    await this.activityLog?.record({
+      actorUserId: actor?.id ?? null,
+      actorEmail: actor?.email ?? 'sistem',
+      action: isActive
+        ? `Mengaktifkan kembali akun ${updated.email}`
+        : `Menonaktifkan akun ${updated.email}`,
+      category: 'USER_STATUS',
+      level: isActive ? 'INFO' : 'WARNING',
+      ipAddress,
+    });
+
+    return updated;
+  }
+
+  async login(dto: LoginDto, ipAddress?: string | null) {
     const email = dto.email.trim().toLowerCase();
     const invalid = new UnauthorizedException('Email atau password salah');
+    const cleanIp = normalizeClientIp(ipAddress);
+    const ipSuffix = cleanIp ? `, IP ${cleanIp}` : '';
 
     const user = await this.prisma.user.findUnique({ where: { email } });
 
     if (!user) {
+      await this.activityLog?.record({
+        actorEmail: email || 'unknown',
+        action: `Login gagal (akun tidak ditemukan)${ipSuffix}`,
+        category: 'AUTH_FAILED',
+        level: 'ERROR',
+        ipAddress: cleanIp,
+      });
       throw invalid;
     }
 
     const isMatch = await compare(dto.password, user.password);
 
     if (!isMatch) {
+      await this.activityLog?.record({
+        actorUserId: user.id,
+        actorEmail: user.email,
+        action: `Login gagal (kata sandi salah)${ipSuffix}`,
+        category: 'AUTH_FAILED',
+        level: 'ERROR',
+        ipAddress: cleanIp,
+      });
       throw invalid;
+    }
+
+    if (user.isActive === false) {
+      await this.activityLog?.record({
+        actorUserId: user.id,
+        actorEmail: user.email,
+        action: `Percobaan login ditolak (akun nonaktif)${ipSuffix}`,
+        category: 'AUTH_FAILED',
+        level: 'WARNING',
+        ipAddress: cleanIp,
+      });
+      throw new ForbiddenException(
+        'Akun Anda telah dinonaktifkan oleh Administrator. Silakan hubungi tim HR atau SuperAdmin.',
+      );
     }
 
     const payload = { sub: user.id, email: user.email, role: user.role };
     const accessToken = await this.jwtService.signAsync(payload);
+
+    await this.activityLog?.record({
+      actorUserId: user.id,
+      actorEmail: user.email,
+      action: `Login berhasil (${formatRoleLabel(user.role)})`,
+      category: 'AUTH_LOGIN',
+      level: 'INFO',
+      ipAddress: cleanIp,
+    });
 
     return {
       accessToken,
@@ -258,6 +425,7 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role,
+        isActive: user.isActive ?? true,
       },
     };
   }

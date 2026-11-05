@@ -58,8 +58,11 @@ export class EmployeeController {
 
   @Roles('SUPER_ADMIN', 'HR')
   @Post()
-  create(@Body() dto: CreateEmployeeDto) {
-    return this.employeeService.create(dto);
+  create(
+    @Body() dto: CreateEmployeeDto,
+    @Request() req: { user?: { id: string; email?: string } },
+  ) {
+    return this.employeeService.create(dto, req.user);
   }
 
   @Roles('SUPER_ADMIN', 'HR')
@@ -76,7 +79,10 @@ export class EmployeeController {
 
   @Roles('SUPER_ADMIN', 'HR')
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.employeeService.remove(id);
+  remove(
+    @Param('id') id: string,
+    @Request() req: { user?: { id: string; email?: string } },
+  ) {
+    return this.employeeService.remove(id, req.user);
   }
 }

@@ -26,14 +26,20 @@ export class PayrollController {
 
   @Roles('HR', 'SUPER_ADMIN')
   @Post('generate')
-  generate(@Body() dto: GeneratePayrollDto) {
-    return this.payrollService.generatePayroll(dto);
+  generate(
+    @Body() dto: GeneratePayrollDto,
+    @Request() req: { user?: { id: string; email?: string } },
+  ) {
+    return this.payrollService.generatePayroll(dto, req.user);
   }
 
   @Roles('HR', 'SUPER_ADMIN')
   @Post('approve-period')
-  approvePeriod(@Body() dto: GeneratePayrollDto) {
-    return this.payrollService.approvePeriod(dto);
+  approvePeriod(
+    @Body() dto: GeneratePayrollDto,
+    @Request() req: { user?: { id: string; email?: string } },
+  ) {
+    return this.payrollService.approvePeriod(dto, req.user);
   }
 
   @Roles('HR', 'SUPER_ADMIN')
@@ -118,8 +124,11 @@ export class PayrollController {
 
   @Roles('HR', 'SUPER_ADMIN')
   @Patch(':id/approve')
-  approve(@Param('id') id: string) {
-    return this.payrollService.approve(id);
+  approve(
+    @Param('id') id: string,
+    @Request() req: { user?: { id: string; email?: string } },
+  ) {
+    return this.payrollService.approve(id, req.user);
   }
 
   @Roles('HR', 'SUPER_ADMIN')
@@ -130,7 +139,10 @@ export class PayrollController {
 
   @Roles('HR', 'SUPER_ADMIN')
   @Patch(':id/mark-paid')
-  markPaid(@Param('id') id: string) {
-    return this.payrollService.markPaid(id);
+  markPaid(
+    @Param('id') id: string,
+    @Request() req: { user?: { id: string; email?: string } },
+  ) {
+    return this.payrollService.markPaid(id, req.user);
   }
 }

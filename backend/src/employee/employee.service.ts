@@ -3,9 +3,11 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import type { EmployeeStatus } from '@prisma/client';
 import { hash } from 'bcryptjs';
+import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateEmployeeDto } from './dto/create-employee.dto.js';
 import { UpdateEmployeeDto } from './dto/update-employee.dto.js';
@@ -19,6 +21,7 @@ const USER_SAFE_SELECT = {
   name: true,
   email: true,
   role: true,
+  isActive: true,
   createdAt: true,
 } as const;
 
@@ -43,7 +46,10 @@ const EMPLOYEE_INCLUDE = {
 
 @Injectable()
 export class EmployeeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly activityLog?: ActivityLogService,
+  ) {}
 
   private withContractWarning<
     T extends { status: EmployeeStatus; contractEndDate: Date | null },
@@ -161,7 +167,10 @@ export class EmployeeService {
     return this.withContractWarning(employee);
   }
 
-  async create(dto: CreateEmployeeDto) {
+  async create(
+    dto: CreateEmployeeDto,
+    actor?: { id?: string; email?: string },
+  ) {
     const email = dto.email.trim().toLowerCase();
 
     const existingEmail = await this.prisma.user.findUnique({
@@ -266,6 +275,14 @@ export class EmployeeService {
         where: { id: employee.id },
         include: EMPLOYEE_INCLUDE,
       });
+    });
+
+    await this.activityLog?.record({
+      actorUserId: actor?.id ?? null,
+      actorEmail: actor?.email ?? 'sistem',
+      action: `Menambahkan data karyawan baru ${created.user.name} (${created.user.email})`,
+      category: 'EMPLOYEE',
+      level: 'INFO',
     });
 
     return this.withContractWarning(created);
@@ -435,9 +452,10 @@ export class EmployeeService {
     return employee.manager;
   }
 
-  async remove(id: string) {
+  async remove(id: string, actor?: { id?: string; email?: string }) {
     const employee = await this.prisma.employee.findUnique({
       where: { id },
+      include: { user: { select: { email: true, name: true } } },
     });
 
     if (!employee) {
@@ -451,6 +469,14 @@ export class EmployeeService {
       });
       await tx.employee.delete({ where: { id } });
       await tx.user.delete({ where: { id: employee.userId } });
+    });
+
+    await this.activityLog?.record({
+      actorUserId: actor?.id ?? null,
+      actorEmail: actor?.email ?? 'sistem',
+      action: `Menghapus data karyawan ${employee.user?.email ?? id}`,
+      category: 'EMPLOYEE',
+      level: 'WARNING',
     });
 
     return { message: 'Data karyawan dan akun berhasil dihapus' };

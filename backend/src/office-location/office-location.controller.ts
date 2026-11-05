@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
@@ -40,8 +41,12 @@ export class OfficeLocationController {
 
   @Roles('SUPER_ADMIN', 'HR')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateOfficeLocationDto) {
-    return this.officeLocationService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateOfficeLocationDto,
+    @Request() req: { user?: { id: string; email?: string } },
+  ) {
+    return this.officeLocationService.update(id, dto, req.user);
   }
 
   @Roles('SUPER_ADMIN', 'HR')

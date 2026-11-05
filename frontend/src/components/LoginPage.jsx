@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import api from '../lib/api'
 import EmployeePortal from './EmployeePortal'
 import ManagerPortal from './ManagerPortal'
@@ -16,7 +16,10 @@ import {
 import {
   resolveUserSession,
   buildRegistrationPayload,
+  normalizeRole,
+  getRoleMetadata,
 } from '../lib/authUtils'
+import { shouldUseOfflineDemoFallback } from '../lib/adminUtils'
 
 // 4 User Personas according to desain_UI.pdf
 const STORAGE_KEY_TOKEN = 'hris_token'
@@ -116,11 +119,63 @@ export default function LoginPage() {
   const [currentUser, setCurrentUser] = useState(getInitialUser)
   const toastTimerRef = useRef(null)
 
-  const triggerToast = (type, title, message) => {
+  const triggerToast = useCallback((type, title, message) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
     setToast({ type, title, message })
     toastTimerRef.current = setTimeout(() => setToast(null), 4000)
-  }
+  }, [])
+
+  useEffect(() => {
+    const handleForceLogout = (event) => {
+      const msg =
+        event?.detail?.message ||
+        'Sesi Anda telah berakhir atau akun dinonaktifkan oleh Administrator.'
+      setCurrentUser(null)
+      setPassword('')
+      setStatus('error')
+      setErrorMessage(msg)
+      triggerToast('error', 'Sesi Dihentikan', msg)
+    }
+
+    window.addEventListener('hris:force-logout', handleForceLogout)
+    return () => {
+      window.removeEventListener('hris:force-logout', handleForceLogout)
+    }
+  }, [triggerToast])
+
+  useEffect(() => {
+    const token = localStorage.getItem(STORAGE_KEY_TOKEN)
+    if (!currentUser || !token) return
+
+    let cancelled = false
+    api
+      .get('/auth/profile')
+      .then((res) => {
+        if (cancelled || !res?.data?.role) return
+        const serverRole = normalizeRole(res.data.role)
+        const currentRole = normalizeRole(currentUser.role)
+        if (serverRole !== currentRole) {
+          const meta = getRoleMetadata(serverRole)
+          const updatedSession = {
+            ...currentUser,
+            id: res.data.id || currentUser.id,
+            name: res.data.name || currentUser.name,
+            role: serverRole,
+            label: meta.label,
+            portal: meta.portal,
+          }
+          localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(updatedSession))
+          setCurrentUser(updatedSession)
+        }
+      })
+      .catch(() => {
+        // Interceptor api.js menangani pencabutan 401/403; abaikan jika jaringan offline
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentUser])
 
   const handleSelectDemo = (account) => {
     setActiveRole(account.role)
@@ -178,18 +233,22 @@ export default function LoginPage() {
         `Selamat datang kembali, ${userSession.name}`
       )
     } catch (err) {
-      if (matchedDemo && password === 'kerabat123') {
+      if (shouldUseOfflineDemoFallback(err, matchedDemo, password)) {
         setStatus('success')
+        localStorage.removeItem(STORAGE_KEY_TOKEN)
         localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(matchedDemo))
         setCurrentUser(matchedDemo)
         triggerToast(
-          'success',
-          'Masuk Mode Demo',
-          `Berhasil login sebagai ${matchedDemo.name} (${matchedDemo.role})`
+          'info',
+          'Masuk Mode Offline Demo',
+          `Server backend tidak terjangkau. Masuk lokal sebagai ${matchedDemo.name} (${matchedDemo.role}).`
         )
       } else {
         setStatus('error')
-        const backendMsg = err?.response?.data?.message || err.message
+        const rawBackendMsg = err?.response?.data?.message
+        const backendMsg = Array.isArray(rawBackendMsg)
+          ? rawBackendMsg.join(', ')
+          : rawBackendMsg || err.message
         setErrorMessage(
           backendMsg && backendMsg !== 'Network Error'
             ? backendMsg

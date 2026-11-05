@@ -46,12 +46,19 @@ enum PayrollStatus {
   PAID
 }
 
+enum ActivityLevel {
+  INFO
+  WARNING
+  ERROR
+}
+
 model User {
   id        String    @id @default(uuid())
   name      String
   email     String    @unique
   password  String
   role      Role      @default(EMPLOYEE)
+  isActive  Boolean   @default(true)
   employee  Employee?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -173,3 +180,18 @@ model PayrollRecord {
 
   @@unique([employeeId, periodMonth, periodYear])
 }
+
+model ActivityLog {
+  id          String        @id @default(uuid())
+  actorUserId String?
+  actorEmail  String
+  action      String
+  category    String        @default("SYSTEM")
+  level       ActivityLevel @default(INFO)
+  ipAddress   String?
+  createdAt   DateTime      @default(now())
+
+  @@index([createdAt])
+  @@index([category, createdAt])
+}
+

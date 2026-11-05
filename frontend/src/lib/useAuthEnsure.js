@@ -8,6 +8,7 @@ export default function useAuthEnsure(currentUser, fallbackEmail) {
   return useCallback(async () => {
     const existing = localStorage.getItem('hris_token')
     if (existing) return existing
+    if (!localStorage.getItem('hris_user')) return null
     try {
       const email =
         currentUser?.backendEmail || currentUser?.email || fallbackEmail

@@ -4,8 +4,10 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import type { AttendanceStatus } from '@prisma/client';
+import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DEFAULT_KAMPUS_UNP_LOCATION } from '../office-location/office-location.constants.js';
 import {
@@ -21,7 +23,10 @@ const WORK_END_HOUR = 17; // 17:00
 
 @Injectable()
 export class AttendanceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly activityLog?: ActivityLogService,
+  ) {}
 
   /**
    * Menghitung waktu zona WIB (Asia/Jakarta, UTC+7) secara akurat tanpa terpengaruh perbedaan TZ server.
@@ -259,13 +264,25 @@ export class AttendanceService {
 
     await this.syncEmployeeDraftPayroll(employee.id, today);
 
+    const officeLabel = office?.name ?? 'Default Office';
+    await this.activityLog?.record({
+      actorUserId: userId,
+      actorEmail: employee.user?.email ?? userId,
+      action:
+        status === 'LATE'
+          ? `Clock in terlambat, jarak ${distanceMeters}m dari ${officeLabel}`
+          : `Clock in, dalam radius ${office?.radius ?? 200}m ${officeLabel}`,
+      category: 'ATTENDANCE',
+      level: status === 'LATE' ? 'WARNING' : 'INFO',
+    });
+
     return {
       message:
         status === 'LATE'
           ? 'Clock-in berhasil dicatat (Terlambat)'
           : 'Clock-in berhasil dicatat (Tepat Waktu)',
       distanceMeters,
-      officeName: office?.name ?? 'Default Office',
+      officeName: officeLabel,
       attendance: record,
     };
   }
@@ -330,10 +347,22 @@ export class AttendanceService {
 
     await this.syncEmployeeDraftPayroll(employee.id, today);
 
+    const officeLabel = office?.name ?? 'Default Office';
+    await this.activityLog?.record({
+      actorUserId: userId,
+      actorEmail: employee.user?.email ?? userId,
+      action:
+        overtimeMinutes > 0
+          ? `Clock out lembur ${overtimeMinutes} menit, jarak ${distanceMeters}m dari ${officeLabel}`
+          : `Clock out, jarak ${distanceMeters}m dari ${officeLabel}`,
+      category: 'ATTENDANCE',
+      level: 'INFO',
+    });
+
     return {
       message: 'Clock-out berhasil dicatat',
       distanceMeters,
-      officeName: office?.name ?? 'Default Office',
+      officeName: officeLabel,
       attendance: updated,
     };
   }

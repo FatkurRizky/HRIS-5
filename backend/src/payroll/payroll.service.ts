@@ -3,8 +3,10 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import type { Role } from '@prisma/client';
+import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { GeneratePayrollDto } from './dto/generate-payroll.dto.js';
 import { RevisePayrollDto } from './dto/revise-payroll.dto.js';
@@ -18,17 +20,29 @@ import {
 } from './payroll-calculator.js';
 import { buildPayslipPdfBuffer } from './pdf-builder.js';
 
+interface PayrollActorContext {
+  id?: string;
+  email?: string;
+  suppressLog?: boolean;
+}
+
 @Injectable()
 export class PayrollService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly activityLog?: ActivityLogService,
+  ) {}
 
-  async generatePayroll(dto: GeneratePayrollDto) {
+  async generatePayroll(dto: GeneratePayrollDto, actor?: PayrollActorContext) {
     const { month, year, startDate, endDate, periodLabel } = normalizePeriod(
       dto.month,
       dto.year,
     );
 
     const employees = await this.prisma.employee.findMany({
+      where: {
+        user: { isActive: true },
+      },
       include: {
         ...EMPLOYEE_PAYROLL_INCLUDE,
         salary: true,
@@ -105,6 +119,16 @@ export class PayrollService {
       });
     }
 
+    if (!actor?.suppressLog) {
+      await this.activityLog?.record({
+        actorUserId: actor?.id ?? null,
+        actorEmail: actor?.email ?? 'sistem',
+        action: `Menghitung payroll periode ${periodLabel} (${results.length} karyawan aktif)`,
+        category: 'PAYROLL',
+        level: 'INFO',
+      });
+    }
+
     return {
       message: `Kalkulasi payroll periode ${periodLabel} berhasil diproses`,
       count: results.length,
@@ -112,11 +136,11 @@ export class PayrollService {
     };
   }
 
-  async approvePeriod(dto: GeneratePayrollDto) {
+  async approvePeriod(dto: GeneratePayrollDto, actor?: PayrollActorContext) {
     const { month, year, periodLabel } = normalizePeriod(dto.month, dto.year);
 
     // Hitung ulang payroll periode agar potongan keterlambatan & lembur terkini langsung tercatat
-    await this.generatePayroll({ month, year });
+    await this.generatePayroll({ month, year }, { suppressLog: true });
 
     const updated = await this.prisma.payrollRecord.updateMany({
       where: { periodMonth: month, periodYear: year, status: 'DRAFT' },
@@ -124,6 +148,14 @@ export class PayrollService {
     });
 
     const records = await this.findAll(month, year);
+
+    await this.activityLog?.record({
+      actorUserId: actor?.id ?? null,
+      actorEmail: actor?.email ?? 'sistem',
+      action: `Menyetujui payroll tahap HR periode ${periodLabel} (${updated.count} slip)`,
+      category: 'PAYROLL',
+      level: 'INFO',
+    });
 
     return {
       message: `Payroll periode ${periodLabel} berhasil disetujui (${updated.count} slip diperbarui)`,
@@ -506,7 +538,7 @@ export class PayrollService {
     };
   }
 
-  async approve(id: string) {
+  async approve(id: string, actor?: PayrollActorContext) {
     const record = await this.prisma.payrollRecord.findUnique({
       where: { id },
       include: {
@@ -535,7 +567,7 @@ export class PayrollService {
     });
     const calc = calculatePayrollBreakdown(record.employee, attendances);
 
-    return this.prisma.payrollRecord.update({
+    const updated = await this.prisma.payrollRecord.update({
       where: { id },
       data: {
         baseSalary: calc.baseSalary,
@@ -549,6 +581,19 @@ export class PayrollService {
         revisionNote: null,
       },
     });
+
+    const empName = record.employee?.user?.name;
+    await this.activityLog?.record({
+      actorUserId: actor?.id ?? null,
+      actorEmail: actor?.email ?? 'sistem',
+      action: empName
+        ? `Menyetujui payroll tahap HR untuk ${empName}`
+        : 'Menyetujui payroll tahap HR',
+      category: 'PAYROLL',
+      level: 'INFO',
+    });
+
+    return updated;
   }
 
   async revise(id: string, dto: RevisePayrollDto) {
@@ -596,9 +641,14 @@ export class PayrollService {
     });
   }
 
-  async markPaid(id: string) {
+  async markPaid(id: string, actor?: PayrollActorContext) {
     const record = await this.prisma.payrollRecord.findUnique({
       where: { id },
+      include: {
+        employee: {
+          include: { user: { select: { name: true } } },
+        },
+      },
     });
     if (!record) throw new NotFoundException('Data payroll tidak ditemukan');
     if (record.status !== 'APPROVED') {
@@ -607,10 +657,23 @@ export class PayrollService {
       );
     }
 
-    return this.prisma.payrollRecord.update({
+    const updated = await this.prisma.payrollRecord.update({
       where: { id },
       data: { status: 'PAID' },
     });
+
+    const empName = record.employee?.user?.name;
+    await this.activityLog?.record({
+      actorUserId: actor?.id ?? null,
+      actorEmail: actor?.email ?? 'sistem',
+      action: empName
+        ? `Menandai pembayaran gaji selesai (PAID) untuk ${empName}`
+        : 'Menandai pembayaran gaji selesai (PAID)',
+      category: 'PAYROLL',
+      level: 'INFO',
+    });
+
+    return updated;
   }
 
   async generatePayslipPdf(id: string, userId: string, role: Role) {

@@ -51,23 +51,32 @@ export class LeaveController {
   @Patch(':id/manager-approve')
   managerApprove(
     @Param('id') id: string,
-    @Request() req: { user: { id: string; role: Role } },
+    @Request() req: { user: { id: string; email?: string; role: Role } },
   ) {
-    return this.leaveService.managerApprove(id, req.user.id, req.user.role);
+    return this.leaveService.managerApprove(
+      id,
+      req.user.id,
+      req.user.role,
+      req.user.email,
+    );
   }
 
   @Roles('HR', 'SUPER_ADMIN')
   @Patch(':id/hr-approve')
   hrApprove(
     @Param('id') id: string,
-    @Request() req: { user: { id: string } },
+    @Request() req: { user: { id: string; email?: string } },
   ) {
-    return this.leaveService.hrApprove(id, req.user.id);
+    return this.leaveService.hrApprove(id, req.user.id, req.user.email);
   }
 
   @Roles('MANAGER', 'HR', 'SUPER_ADMIN')
   @Patch(':id/reject')
-  reject(@Param('id') id: string, @Body() dto: RejectLeaveDto) {
-    return this.leaveService.reject(id, dto);
+  reject(
+    @Param('id') id: string,
+    @Body() dto: RejectLeaveDto,
+    @Request() req: { user?: { id: string; email?: string } },
+  ) {
+    return this.leaveService.reject(id, dto, req.user);
   }
 }

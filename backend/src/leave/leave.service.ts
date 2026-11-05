@@ -3,15 +3,20 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import type { LeaveStatus, Role } from '@prisma/client';
+import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateLeaveDto } from './dto/create-leave.dto.js';
 import { RejectLeaveDto } from './dto/reject-leave.dto.js';
 
 @Injectable()
 export class LeaveService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly activityLog?: ActivityLogService,
+  ) {}
 
   /**
    * Menghitung jumlah hari kerja (Senin - Jumat) antara startDate dan endDate (inklusif).
@@ -169,10 +174,21 @@ export class LeaveService {
     });
   }
 
-  async managerApprove(id: string, userId: string, role: Role) {
+  async managerApprove(
+    id: string,
+    userId: string,
+    role: Role,
+    actorEmail?: string,
+  ) {
     const leave = await this.prisma.leaveRequest.findUnique({
       where: { id },
-      include: { employee: true },
+      include: {
+        employee: {
+          include: {
+            user: { select: { name: true, email: true } },
+          },
+        },
+      },
     });
 
     if (!leave) {
@@ -208,6 +224,15 @@ export class LeaveService {
       data: { status: 'MANAGER_APPROVED' },
     });
 
+    const employeeLabel = leave.employee?.user?.name ?? 'karyawan';
+    await this.activityLog?.record({
+      actorUserId: userId,
+      actorEmail: actorEmail ?? userId,
+      action: `Menyetujui cuti tahap Manager untuk ${employeeLabel}`,
+      category: 'LEAVE',
+      level: 'INFO',
+    });
+
     return {
       message:
         'Pengajuan disetujui oleh Manager (Layer 1) dan diteruskan ke HR untuk persetujuan final',
@@ -215,10 +240,16 @@ export class LeaveService {
     };
   }
 
-  async hrApprove(id: string, userId: string) {
+  async hrApprove(id: string, userId: string, actorEmail?: string) {
     const leave = await this.prisma.leaveRequest.findUnique({
       where: { id },
-      include: { employee: true },
+      include: {
+        employee: {
+          include: {
+            user: { select: { name: true, email: true } },
+          },
+        },
+      },
     });
 
     if (!leave) {
@@ -275,6 +306,15 @@ export class LeaveService {
       });
     });
 
+    const employeeLabel = leave.employee?.user?.name ?? 'karyawan';
+    await this.activityLog?.record({
+      actorUserId: userId,
+      actorEmail: actorEmail ?? userId,
+      action: `Menyetujui cuti final HR untuk ${employeeLabel}`,
+      category: 'LEAVE',
+      level: 'INFO',
+    });
+
     return {
       message:
         'Pengajuan cuti resmi disetujui oleh HR (Final) dan kuota cuti telah diperbarui',
@@ -282,9 +322,20 @@ export class LeaveService {
     };
   }
 
-  async reject(id: string, dto: RejectLeaveDto) {
+  async reject(
+    id: string,
+    dto: RejectLeaveDto,
+    actor?: { id?: string; email?: string },
+  ) {
     const leave = await this.prisma.leaveRequest.findUnique({
       where: { id },
+      include: {
+        employee: {
+          include: {
+            user: { select: { name: true, email: true } },
+          },
+        },
+      },
     });
 
     if (!leave) {
@@ -306,6 +357,15 @@ export class LeaveService {
           dto.rejectionReason?.trim() ??
           'Ditolak oleh atasan / HR Administrator',
       },
+    });
+
+    const employeeLabel = leave.employee?.user?.name ?? 'karyawan';
+    await this.activityLog?.record({
+      actorUserId: actor?.id ?? null,
+      actorEmail: actor?.email ?? 'sistem',
+      action: `Menolak pengajuan cuti ${employeeLabel}`,
+      category: 'LEAVE',
+      level: 'WARNING',
     });
 
     return {

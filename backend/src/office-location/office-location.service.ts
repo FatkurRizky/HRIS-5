@@ -3,7 +3,9 @@ import {
   Injectable,
   NotFoundException,
   OnModuleInit,
+  Optional,
 } from '@nestjs/common';
+import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateOfficeLocationDto } from './dto/create-office-location.dto.js';
 import { UpdateOfficeLocationDto } from './dto/update-office-location.dto.js';
@@ -13,7 +15,10 @@ export { DEFAULT_KAMPUS_UNP_LOCATION };
 
 @Injectable()
 export class OfficeLocationService implements OnModuleInit {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly activityLog?: ActivityLogService,
+  ) {}
 
   async onModuleInit() {
     const existingKampus = await this.prisma.officeLocation.findUnique({
@@ -100,7 +105,11 @@ export class OfficeLocationService implements OnModuleInit {
     });
   }
 
-  async update(id: string, dto: UpdateOfficeLocationDto) {
+  async update(
+    id: string,
+    dto: UpdateOfficeLocationDto,
+    actor?: { id?: string; email?: string },
+  ) {
     const location = await this.prisma.officeLocation.findUnique({
       where: { id },
     });
@@ -120,7 +129,7 @@ export class OfficeLocationService implements OnModuleInit {
       }
     }
 
-    return this.prisma.officeLocation.update({
+    const updated = await this.prisma.officeLocation.update({
       where: { id },
       data: {
         ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
@@ -130,6 +139,16 @@ export class OfficeLocationService implements OnModuleInit {
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
       },
     });
+
+    await this.activityLog?.record({
+      actorUserId: actor?.id ?? null,
+      actorEmail: actor?.email ?? 'sistem',
+      action: `Memperbarui konfigurasi geofence ${updated.name} (radius ${updated.radius}m)`,
+      category: 'CONFIG',
+      level: 'INFO',
+    });
+
+    return updated;
   }
 
   async remove(id: string) {
