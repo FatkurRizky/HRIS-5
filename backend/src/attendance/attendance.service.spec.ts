@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AttendanceService } from './attendance.service.js';
@@ -7,7 +8,7 @@ describe('AttendanceService (Timezone & Late Handling)', () => {
   let prismaMock: {
     officeLocation: { findMany: any };
     attendance: { findUnique: any; create: any; update: any; deleteMany: any; findMany: any };
-    employee: { findUnique: any; create: any };
+    employee: { findUnique: any; create: any; findMany: any };
     user: { findUnique: any };
     payrollRecord: { findUnique: any; update: any };
   };
@@ -25,6 +26,7 @@ describe('AttendanceService (Timezone & Late Handling)', () => {
       employee: {
         findUnique: vi.fn(),
         create: vi.fn(),
+        findMany: vi.fn(),
       },
       user: { findUnique: vi.fn() },
       payrollRecord: {
@@ -207,6 +209,120 @@ describe('AttendanceService (Timezone & Late Handling)', () => {
 
       // Must not update approved payroll record
       expect(prismaMock.payrollRecord.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Attendance RBAC (HR and Manager role rejection)', () => {
+    it.each(['HR', 'MANAGER', 'SUPER_ADMIN'])(
+      'should throw ForbiddenException when %s tries to clockIn',
+      async (role) => {
+        prismaMock.employee.findUnique.mockResolvedValue({
+          id: `emp-${role}`,
+          userId: `user-${role}`,
+          user: { role },
+        });
+
+        await expect(
+          service.clockIn(`user-${role}`, {
+            latitude: -7.8036003,
+            longitude: 112.005465,
+          }),
+        ).rejects.toThrow(ForbiddenException);
+      },
+    );
+
+    it.each(['HR', 'MANAGER', 'SUPER_ADMIN'])(
+      'should throw ForbiddenException when %s tries to clockOut',
+      async (role) => {
+        prismaMock.employee.findUnique.mockResolvedValue({
+          id: `emp-${role}`,
+          userId: `user-${role}`,
+          user: { role },
+        });
+
+        await expect(
+          service.clockOut(`user-${role}`, {
+            latitude: -7.8036003,
+            longitude: 112.005465,
+          }),
+        ).rejects.toThrow(ForbiddenException);
+      },
+    );
+
+    it.each(['HR', 'MANAGER', 'SUPER_ADMIN'])(
+      'should throw ForbiddenException when %s tries to resetToday',
+      async (role) => {
+        prismaMock.employee.findUnique.mockResolvedValue({
+          id: `emp-${role}`,
+          userId: `user-${role}`,
+          user: { role },
+        });
+
+        await expect(service.resetToday(`user-${role}`)).rejects.toThrow(
+          ForbiddenException,
+        );
+      },
+    );
+
+    it.each(['HR', 'MANAGER', 'SUPER_ADMIN'])(
+      'should throw ForbiddenException when %s tries to getMyRecords',
+      async (role) => {
+        prismaMock.employee.findUnique.mockResolvedValue({
+          id: `emp-${role}`,
+          userId: `user-${role}`,
+          user: { role },
+        });
+
+        await expect(service.getMyRecords(`user-${role}`)).rejects.toThrow(
+          ForbiddenException,
+        );
+      },
+    );
+
+    it.each(['HR', 'MANAGER', 'SUPER_ADMIN'])(
+      'should throw ForbiddenException when %s tries to getMyMonthlyRecap',
+      async (role) => {
+        prismaMock.employee.findUnique.mockResolvedValue({
+          id: `emp-${role}`,
+          userId: `user-${role}`,
+          user: { role },
+        });
+
+        await expect(
+          service.getMyMonthlyRecap(`user-${role}`, 10, 2026),
+        ).rejects.toThrow(ForbiddenException);
+      },
+    );
+
+    it('getMonthlyRecap should query employees filtered with role EMPLOYEE', async () => {
+      prismaMock.employee.findMany.mockResolvedValue([]);
+
+      await service.getMonthlyRecap(10, 2026);
+
+      expect(prismaMock.employee.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            user: { role: 'EMPLOYEE' },
+          },
+        }),
+      );
+    });
+
+    it('findAll should filter by employee user role EMPLOYEE', async () => {
+      prismaMock.attendance.findMany.mockResolvedValue([]);
+
+      await service.findAll({ departmentId: 'dept-1' });
+
+      expect(prismaMock.attendance.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            employee: expect.objectContaining({
+              user: { role: 'EMPLOYEE' },
+              departmentId: 'dept-1',
+            }),
+          }),
+        }),
+      );
     });
   });
 });

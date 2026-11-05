@@ -5,7 +5,6 @@ import { formatStatusLabel, getInitials } from '../lib/formatters'
 import useAuthEnsure from '../lib/useAuthEnsure'
 import useLiveClock from '../lib/useLiveClock'
 import useToast from '../lib/useToast'
-import useAttendance from '../lib/useAttendance'
 import AddEmployeeModal from './hr/AddEmployeeModal'
 import HRBerandaTab from './hr/HRBerandaTab'
 import HRKaryawanTab from './hr/HRKaryawanTab'
@@ -31,7 +30,7 @@ const INITIAL_EMPLOYEES = [
 const NAV_ITEMS = [
   { id: 'beranda', Icon: IconDashboard, label: 'Beranda' },
   { id: 'karyawan', Icon: IconUsers, label: 'Karyawan' },
-  { id: 'absensi', Icon: IconMapPin, label: 'Absensi' },
+  { id: 'absensi', Icon: IconMapPin, label: 'Rekap Absensi' },
   { id: 'cuti', Icon: IconCalendar, label: 'Cuti' },
   { id: 'payroll', Icon: IconCreditCard, label: 'Payroll' },
 ]
@@ -47,11 +46,6 @@ export default function HRPortal({ currentUser, onLogout }) {
   const { currentTime, currentDateStr } = useLiveClock()
   const { toast, showToast } = useToast()
   const ensureHrToken = useAuthEnsure(currentUser, 'hr@kerabat.id')
-
-  const attendance = useAttendance({
-    ensureToken: ensureHrToken,
-    notify: showToast,
-  })
 
   const fetchBackendEmployees = useCallback(async () => {
     try {
@@ -211,10 +205,8 @@ export default function HRPortal({ currentUser, onLogout }) {
             hrName={hrName.split(' ')[0]}
             currentTime={currentTime}
             currentDateStr={currentDateStr}
-            officeLocationName={attendance.officeLocation.name}
             employeesCount={employees.length}
             pendingQueueCount={hrLeaveQueue.length}
-            onNavigateAbsensi={() => setActiveTab('absensi')}
           />
         )}
 
@@ -226,11 +218,7 @@ export default function HRPortal({ currentUser, onLogout }) {
         )}
 
         {activeTab === 'absensi' && (
-          <HRAbsensiTab
-            currentTime={currentTime}
-            attendance={attendance}
-            ensureToken={ensureHrToken}
-          />
+          <HRAbsensiTab ensureToken={ensureHrToken} />
         )}
 
         {activeTab === 'cuti' && (

@@ -13,10 +13,8 @@ export default function HRBerandaTab({
   hrName,
   currentTime,
   currentDateStr,
-  officeLocationName,
   employeesCount,
   pendingQueueCount,
-  onNavigateAbsensi,
 }) {
   const totalHeadcount = 137 + employeesCount
 
@@ -28,22 +26,13 @@ export default function HRBerandaTab({
           <h2 className="text-2xl font-bold mb-1">
             Selamat bertugas, {hrName}
           </h2>
-          <p className="text-xs text-stone-300 mb-2">{currentDateStr}</p>
-          <p className="text-xs text-stone-300">
-            Shift pagi 08:00 sampai 17:00, {officeLocationName}
-          </p>
+          <p className="text-xs text-stone-300">{currentDateStr}</p>
         </div>
 
         <div className="flex flex-col items-end gap-2.5">
           <div className="text-4xl md:text-5xl font-black tracking-tight">
             {currentTime}
           </div>
-          <button
-            onClick={onNavigateAbsensi}
-            className="bg-[#eab04c] hover:bg-[#dfa038] text-[#0f3832] font-bold px-5 py-2.5 rounded-xl text-xs transition cursor-pointer shadow-xs"
-          >
-            Absen sekarang
-          </button>
         </div>
       </div>
 

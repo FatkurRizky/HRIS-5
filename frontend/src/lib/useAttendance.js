@@ -33,7 +33,8 @@ function extractApiError(err, fallback) {
 }
 
 /**
- * Logika absensi bersama untuk semua portal (Karyawan, HR, Manager).
+ * Logika absensi untuk portal Karyawan (EMPLOYEE).
+ * HR dan Manager tidak memiliki absensi pribadi.
  * Lokasi default & aktif: Kampus 2 UNP Kediri (-7.8036003, 112.005465) dengan radius 200 meter.
  *
  * @param {{ ensureToken: () => Promise<any>, notify: (type: 'success'|'error'|'info', message: string) => void }} opts

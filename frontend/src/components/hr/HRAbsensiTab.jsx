@@ -2,43 +2,19 @@ import { useState, useEffect, useCallback } from 'react'
 import api from '../../lib/api'
 import { LATE_PENALTY_PER_DAY } from '../../lib/constants'
 import { downloadBlob, formatRupiah } from '../../lib/formatters'
-import AttendanceHistory from '../AttendanceHistory'
-import GeofenceRadarCard from '../shared/GeofenceRadarCard'
 import PeriodSelector from '../shared/PeriodSelector'
 
 /**
- * Tab 3 Portal HR: Absensi Geofence Kampus 2 UNP Kediri (Radius 200m) & Rekap Bulanan (Page 11 desain_UI.pdf).
+ * Tab 3 Portal HR: Rekap Absensi Bulanan Karyawan (Staf).
+ * HR dan Manager tidak memiliki absensi pribadi, sehingga tab ini murni menampilkan rekapitulasi staf.
  */
-export default function HRAbsensiTab({
-  currentTime,
-  attendance,
-  ensureToken,
-}) {
+export default function HRAbsensiTab({ ensureToken }) {
   const [recapPeriod, setRecapPeriod] = useState(() => {
     const now = new Date()
     return { month: now.getMonth() + 1, year: now.getFullYear() }
   })
   const [recapRows, setRecapRows] = useState([])
   const [recapLoading, setRecapLoading] = useState(false)
-
-  const {
-    officeLocation,
-    radius: maxOfficeRadius,
-    attendances: myAttendances,
-    todayAttendance,
-    loading: clockLoading,
-    simulatedDistance,
-    setSimulatedDistance,
-    realCoords,
-    gpsLoading,
-    detectRealGps,
-    calibrateOfficeToMyGps,
-    resetOfficeToKampusUnp,
-    isWithinGeofence,
-    clockIn: handleHrClockIn,
-    clockOut: handleHrClockOut,
-    stats: myAttendanceStats,
-  } = attendance
 
   const fetchAttendanceRecap = useCallback(async () => {
     setRecapLoading(true)
@@ -99,101 +75,21 @@ export default function HRAbsensiTab({
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-stone-900">Absensi</h2>
+        <h2 className="text-2xl font-bold text-stone-900">Rekap Absensi Karyawan</h2>
         <p className="text-xs text-stone-500 mt-1">
-          Clock in dan clock out hanya bisa dilakukan dalam radius{' '}
-          {maxOfficeRadius}m area {officeLocation.name}
+          Monitoring kehadiran dan rekapitulasi absensi seluruh staf karyawan bulanan sebagai dasar evaluasi &amp; payroll.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Card: Radar & Clock In/Out */}
-        <GeofenceRadarCard
-          officeLocation={officeLocation}
-          maxOfficeRadius={maxOfficeRadius}
-          simulatedDistance={simulatedDistance}
-          setSimulatedDistance={setSimulatedDistance}
-          realCoords={realCoords}
-          gpsLoading={gpsLoading}
-          detectRealGps={detectRealGps}
-          calibrateOfficeToMyGps={calibrateOfficeToMyGps}
-          resetOfficeToKampusUnp={resetOfficeToKampusUnp}
-          isWithinGeofence={isWithinGeofence}
-          variant="emerald"
-          headerSlot={
-            <div className="text-4xl font-black text-stone-900 tracking-tight mb-2">
-              {currentTime}
-            </div>
-          }
-          footerSlot={
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={handleHrClockIn}
-                disabled={clockLoading || !!todayAttendance?.clockIn}
-                className={`py-3 rounded-xl font-bold text-xs transition cursor-pointer ${
-                  todayAttendance?.clockIn
-                    ? 'bg-stone-200 text-stone-500 cursor-not-allowed'
-                    : 'bg-[#0f3832] hover:bg-[#14473f] text-white'
-                }`}
-              >
-                {todayAttendance?.clockIn ? 'Sudah Clock in' : 'Clock in'}
-              </button>
-
-              <button
-                onClick={handleHrClockOut}
-                disabled={
-                  clockLoading ||
-                  !todayAttendance?.clockIn ||
-                  !!todayAttendance?.clockOut
-                }
-                className="py-3 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-50 font-bold text-xs transition cursor-pointer disabled:opacity-50"
-              >
-                {todayAttendance?.clockOut ? 'Sudah Clock out' : 'Clock out'}
-              </button>
-            </div>
-          }
-        />
-
-        {/* Right Card: Riwayat Absensi */}
-        <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs flex flex-col justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-stone-900 mb-4">
-              Riwayat absensi
-            </h3>
-            <AttendanceHistory records={myAttendances} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 pt-6 border-t border-stone-100 mt-4">
-            <div>
-              <div className="text-2xl font-black text-stone-900">
-                {myAttendanceStats.workedHours} jam
-              </div>
-              <div className="text-xs text-stone-500 mt-0.5">
-                Total jam kerja bulan ini
-              </div>
-            </div>
-            <div>
-              <div className="text-2xl font-black text-stone-900">
-                {myAttendanceStats.lateCount} kali
-              </div>
-              <div className="text-xs text-stone-500 mt-0.5">
-                Terlambat bulan ini
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Rekap Absensi Bulanan (HR) */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs mt-6">
+      {/* Rekap Absensi Bulanan Staf (HR) */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div>
             <h3 className="text-sm font-bold text-stone-900">
-              Rekap absensi bulanan
+              Rekap absensi bulanan karyawan
             </h3>
             <p className="text-xs text-stone-500 mt-0.5">
-              Telat dipotong Rp100.000 per hari. Data diambil langsung dari
-              absensi karyawan.
+              Telat dipotong Rp100.000 per hari. Data diambil langsung dari absensi seluruh staf karyawan.
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">

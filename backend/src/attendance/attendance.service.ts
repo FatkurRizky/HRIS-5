@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -185,6 +186,7 @@ export class AttendanceService {
   private async getEmployeeByUserId(userId: string) {
     let employee = await this.prisma.employee.findUnique({
       where: { userId },
+      include: { user: true },
     });
 
     if (!employee) {
@@ -199,6 +201,7 @@ export class AttendanceService {
           status: 'TETAP',
           leaveQuota: 12,
         },
+        include: { user: true },
       });
     }
 
@@ -207,6 +210,11 @@ export class AttendanceService {
 
   async clockIn(userId: string, dto: ClockAttendanceDto) {
     const employee = await this.getEmployeeByUserId(userId);
+    if (employee.user && employee.user.role !== 'EMPLOYEE') {
+      throw new ForbiddenException(
+        'Absensi hanya diperuntukkan bagi karyawan (EMPLOYEE)',
+      );
+    }
     const { latitude, longitude } = this.extractCoords(dto);
 
     const { office, distanceMeters } = await this.validateLocationWithinRadius(
@@ -264,6 +272,11 @@ export class AttendanceService {
 
   async clockOut(userId: string, dto: ClockAttendanceDto) {
     const employee = await this.getEmployeeByUserId(userId);
+    if (employee.user && employee.user.role !== 'EMPLOYEE') {
+      throw new ForbiddenException(
+        'Absensi hanya diperuntukkan bagi karyawan (EMPLOYEE)',
+      );
+    }
     const { latitude, longitude } = this.extractCoords(dto);
 
     const { office, distanceMeters } = await this.validateLocationWithinRadius(
@@ -327,6 +340,11 @@ export class AttendanceService {
 
   async resetToday(userId: string) {
     const employee = await this.getEmployeeByUserId(userId);
+    if (employee.user && employee.user.role !== 'EMPLOYEE') {
+      throw new ForbiddenException(
+        'Absensi hanya diperuntukkan bagi karyawan (EMPLOYEE)',
+      );
+    }
     const today = this.getTodayDateOnly(new Date());
 
     await this.prisma.attendance.deleteMany({
@@ -343,6 +361,11 @@ export class AttendanceService {
 
   async getMyRecords(userId: string, month?: number, year?: number) {
     const employee = await this.getEmployeeByUserId(userId);
+    if (employee.user && employee.user.role !== 'EMPLOYEE') {
+      throw new ForbiddenException(
+        'Absensi hanya diperuntukkan bagi karyawan (EMPLOYEE)',
+      );
+    }
     const where: Record<string, unknown> = { employeeId: employee.id };
 
     if (month && year) {
@@ -362,6 +385,7 @@ export class AttendanceService {
     const where: Record<string, unknown> = {
       employee: {
         managerId: manager.id,
+        user: { role: 'EMPLOYEE' },
       },
     };
 
@@ -391,7 +415,12 @@ export class AttendanceService {
     departmentId?: string;
     status?: AttendanceStatus;
   }) {
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = {
+      employee: {
+        user: { role: 'EMPLOYEE' },
+        ...(filters.departmentId ? { departmentId: filters.departmentId } : {}),
+      },
+    };
 
     if (filters.date) {
       where.date = new Date(filters.date);
@@ -404,10 +433,6 @@ export class AttendanceService {
 
     if (filters.status) {
       where.status = filters.status;
-    }
-
-    if (filters.departmentId) {
-      where.employee = { departmentId: filters.departmentId };
     }
 
     return this.prisma.attendance.findMany({
@@ -433,6 +458,9 @@ export class AttendanceService {
     const { startDate, endDate } = normalizePeriod(month, year);
 
     const employees = await this.prisma.employee.findMany({
+      where: {
+        user: { role: 'EMPLOYEE' },
+      },
       include: {
         user: { select: { id: true, name: true, email: true } },
         department: true,
@@ -498,6 +526,11 @@ export class AttendanceService {
 
   async getMyMonthlyRecap(userId: string, month: number, year: number) {
     const employee = await this.getEmployeeByUserId(userId);
+    if (employee.user && employee.user.role !== 'EMPLOYEE') {
+      throw new ForbiddenException(
+        'Absensi hanya diperuntukkan bagi karyawan (EMPLOYEE)',
+      );
+    }
     const allRecaps = await this.getMonthlyRecap(month, year);
     const myRecap = allRecaps.find((item) => item.employeeId === employee.id);
 

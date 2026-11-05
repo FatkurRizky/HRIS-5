@@ -21,6 +21,7 @@ import { ClockAttendanceDto } from './dto/clock-attendance.dto.js';
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
 
+  @Roles('EMPLOYEE')
   @Post('clock-in')
   clockIn(
     @Request() req: { user: { id: string } },
@@ -29,6 +30,7 @@ export class AttendanceController {
     return this.attendanceService.clockIn(req.user.id, dto);
   }
 
+  @Roles('EMPLOYEE')
   @Post('clock-out')
   clockOut(
     @Request() req: { user: { id: string } },
@@ -37,11 +39,13 @@ export class AttendanceController {
     return this.attendanceService.clockOut(req.user.id, dto);
   }
 
+  @Roles('EMPLOYEE')
   @Delete('today')
   resetToday(@Request() req: { user: { id: string } }) {
     return this.attendanceService.resetToday(req.user.id);
   }
 
+  @Roles('EMPLOYEE')
   @Get('my-records')
   getMyRecords(
     @Request() req: { user: { id: string } },
@@ -73,6 +77,7 @@ export class AttendanceController {
     return this.attendanceService.getMonthlyRecap(month, year);
   }
 
+  @Roles('EMPLOYEE')
   @Get('recap/my')
   getMyMonthlyRecap(
     @Request() req: { user: { id: string } },

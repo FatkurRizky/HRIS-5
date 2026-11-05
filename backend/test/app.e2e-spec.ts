@@ -222,4 +222,122 @@ describe('HRIS Backend Smoke E2E Tests', () => {
 
     expect(pdfRes.headers['content-type']).toContain('application/pdf');
   });
+
+  it('Attendance RBAC: should forbid HR and Manager from clocking in or viewing personal attendance, and exclude them from recap', async () => {
+    const activeOffice = await prisma.officeLocation.findFirst({
+      where: { isActive: true },
+    });
+    const officeLat = activeOffice ? activeOffice.latitude : -7.8036003;
+    const officeLng = activeOffice ? activeOffice.longitude : 112.005465;
+
+    // HR cannot clock in -> 403 Forbidden
+    await request(app.getHttpServer())
+      .post('/attendance/clock-in')
+      .set('Authorization', `Bearer ${hrToken}`)
+      .send({ latitude: officeLat, longitude: officeLng })
+      .expect(403);
+
+    // Manager cannot clock in -> 403 Forbidden
+    await request(app.getHttpServer())
+      .post('/attendance/clock-in')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({ latitude: officeLat, longitude: officeLng })
+      .expect(403);
+
+    // HR cannot clock out -> 403 Forbidden
+    await request(app.getHttpServer())
+      .post('/attendance/clock-out')
+      .set('Authorization', `Bearer ${hrToken}`)
+      .send({ latitude: officeLat, longitude: officeLng })
+      .expect(403);
+
+    // Manager cannot clock out -> 403 Forbidden
+    await request(app.getHttpServer())
+      .post('/attendance/clock-out')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({ latitude: officeLat, longitude: officeLng })
+      .expect(403);
+
+    // HR cannot delete/reset today -> 403 Forbidden
+    await request(app.getHttpServer())
+      .delete('/attendance/today')
+      .set('Authorization', `Bearer ${hrToken}`)
+      .expect(403);
+
+    // Manager cannot delete/reset today -> 403 Forbidden
+    await request(app.getHttpServer())
+      .delete('/attendance/today')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .expect(403);
+
+    // HR cannot get my-records -> 403 Forbidden
+    await request(app.getHttpServer())
+      .get('/attendance/my-records')
+      .set('Authorization', `Bearer ${hrToken}`)
+      .expect(403);
+
+    // Manager cannot get my-records -> 403 Forbidden
+    await request(app.getHttpServer())
+      .get('/attendance/my-records')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .expect(403);
+
+    // HR cannot get personal monthly recap -> 403 Forbidden
+    await request(app.getHttpServer())
+      .get('/attendance/recap/my?month=10&year=2026')
+      .set('Authorization', `Bearer ${hrToken}`)
+      .expect(403);
+
+    // Manager cannot get personal monthly recap -> 403 Forbidden
+    await request(app.getHttpServer())
+      .get('/attendance/recap/my?month=10&year=2026')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .expect(403);
+
+    // Manager cannot view general recap -> 403 Forbidden
+    await request(app.getHttpServer())
+      .get('/attendance/recap?month=10&year=2026')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .expect(403);
+
+    // Manager cannot query all attendances -> 403 Forbidden
+    await request(app.getHttpServer())
+      .get('/attendance')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .expect(403);
+
+    // Employee CAN get my-records -> 200 OK
+    const empRecords = await request(app.getHttpServer())
+      .get('/attendance/my-records')
+      .set('Authorization', `Bearer ${employeeToken}`)
+      .expect(200);
+    expect(Array.isArray(empRecords.body)).toBe(true);
+
+    // HR can view recap -> 200 OK, but records must NOT contain HR or Manager
+    const recapRes = await request(app.getHttpServer())
+      .get('/attendance/recap?month=10&year=2026')
+      .set('Authorization', `Bearer ${hrToken}`)
+      .expect(200);
+
+    expect(Array.isArray(recapRes.body)).toBe(true);
+    const recapEmails = recapRes.body.map((r: { email: string }) => r.email);
+    expect(recapEmails).not.toContain('hr@kerabat.id');
+    expect(recapEmails).not.toContain('manager@kerabat.id');
+    expect(recapEmails).not.toContain('admin@kerabat.id');
+
+    // HR can query findAll -> 200 OK, and all returned records must belong to regular employees
+    const allRes = await request(app.getHttpServer())
+      .get('/attendance')
+      .set('Authorization', `Bearer ${hrToken}`)
+      .expect(200);
+
+    expect(Array.isArray(allRes.body)).toBe(true);
+    for (const record of allRes.body) {
+      if (record.employee?.user?.email) {
+        expect(record.employee.user.email).not.toBe('hr@kerabat.id');
+        expect(record.employee.user.email).not.toBe('manager@kerabat.id');
+        expect(record.employee.user.email).not.toBe('admin@kerabat.id');
+      }
+    }
+  });
 });
