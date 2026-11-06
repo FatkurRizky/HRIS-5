@@ -198,6 +198,55 @@ describe('PayrollService & Late Deductions', () => {
       expect(results[0].deductions).toBe(100000);
       expect(results[0].total).toBe(11165000);
     });
+
+    it('should sync baseSalary and allowance on DRAFT records when master salary is updated', async () => {
+      const records = [
+        {
+          id: 'rec-salary-sync',
+          employeeId: 'emp-1',
+          periodMonth: 10,
+          periodYear: 2026,
+          baseSalary: 10000000,
+          allowance: 2000000,
+          overtime: 0,
+          deductions: 0,
+          bpjs: 360000,
+          pph21: 375000,
+          total: 11265000,
+          status: 'DRAFT',
+          employee: {
+            salary: {
+              baseSalary: 15000000,
+              allowance: 3000000,
+              overtimeRate: 50000,
+            },
+          },
+        },
+      ];
+
+      prismaMock.payrollRecord.findMany.mockResolvedValue(records);
+      prismaMock.attendance.findMany.mockResolvedValue([]);
+      prismaMock.payrollRecord.update.mockResolvedValue({});
+
+      const results = await service.findAll(10, 2026);
+
+      // gross = 18.000.000, bpjs = 540.000, pph21 = (18jt - 4.5jt)*5% = 675.000 -> total = 16.785.000
+      expect(results[0].baseSalary).toBe(15000000);
+      expect(results[0].allowance).toBe(3000000);
+      expect(results[0].bpjs).toBe(540000);
+      expect(results[0].pph21).toBe(675000);
+      expect(results[0].total).toBe(16785000);
+      expect(prismaMock.payrollRecord.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'rec-salary-sync' },
+          data: expect.objectContaining({
+            baseSalary: 15000000,
+            allowance: 3000000,
+            total: 16785000,
+          }),
+        }),
+      );
+    });
   });
 
   describe('approve', () => {

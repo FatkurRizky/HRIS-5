@@ -11,6 +11,16 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateLeaveDto } from './dto/create-leave.dto.js';
 import { RejectLeaveDto } from './dto/reject-leave.dto.js';
 
+const LEAVE_EMPLOYEE_INCLUDE = {
+  employee: {
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+      department: true,
+      position: true,
+    },
+  },
+} as const;
+
 @Injectable()
 export class LeaveService {
   constructor(
@@ -127,15 +137,7 @@ export class LeaveService {
             OR: [{ managerId: manager.id }, { managerId: null }],
           },
         },
-        include: {
-          employee: {
-            include: {
-              user: { select: { id: true, name: true, email: true } },
-              department: true,
-              position: true,
-            },
-          },
-        },
+        include: LEAVE_EMPLOYEE_INCLUDE,
         orderBy: { createdAt: 'asc' },
       });
     }
@@ -145,15 +147,7 @@ export class LeaveService {
       where: {
         status: 'MANAGER_APPROVED',
       },
-      include: {
-        employee: {
-          include: {
-            user: { select: { id: true, name: true, email: true } },
-            department: true,
-            position: true,
-          },
-        },
-      },
+      include: LEAVE_EMPLOYEE_INCLUDE,
       orderBy: { createdAt: 'asc' },
     });
   }
@@ -161,15 +155,7 @@ export class LeaveService {
   async findAll(status?: LeaveStatus) {
     return this.prisma.leaveRequest.findMany({
       where: status ? { status } : undefined,
-      include: {
-        employee: {
-          include: {
-            user: { select: { id: true, name: true, email: true } },
-            department: true,
-            position: true,
-          },
-        },
-      },
+      include: LEAVE_EMPLOYEE_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
   }

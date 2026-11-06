@@ -56,6 +56,20 @@ describe('frontend calendarUtils', () => {
       expect(res.workDays).toBe(0)
       expect(res.weekendDays).toBe(0)
     })
+
+    it('returns zero workDays for weekend-only range (Saturday to Sunday)', () => {
+      const res = calculateLeaveDays('2026-10-24', '2026-10-25')
+      expect(res.totalDays).toBe(2)
+      expect(res.workDays).toBe(0)
+      expect(res.weekendDays).toBe(2)
+    })
+
+    it('calculates single workday when startDate equals endDate on a weekday', () => {
+      const res = calculateLeaveDays('2026-11-03', '2026-11-03')
+      expect(res.totalDays).toBe(1)
+      expect(res.workDays).toBe(1)
+      expect(res.weekendDays).toBe(0)
+    })
   })
 
   describe('buildCalendarCells', () => {

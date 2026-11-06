@@ -24,19 +24,23 @@ export class UpdateEmployeeDto {
 
   @IsOptional()
   @IsString()
-  nik?: string;
+  nik?: string | null;
 
   @IsOptional()
   @IsString()
-  phone?: string;
+  phone?: string | null;
 
   @IsOptional()
   @IsString()
-  address?: string;
+  address?: string | null;
+
+  @IsOptional()
+  @IsString()
+  photoUrl?: string | null;
 
   @IsOptional()
   @IsDateString()
-  birthDate?: string;
+  birthDate?: string | null;
 
   @IsOptional()
   @IsDateString()
@@ -44,7 +48,7 @@ export class UpdateEmployeeDto {
 
   @IsOptional()
   @IsDateString()
-  contractEndDate?: string;
+  contractEndDate?: string | null;
 
   @IsOptional()
   @IsInt()
@@ -61,9 +65,32 @@ export class UpdateEmployeeDto {
 
   @IsOptional()
   @IsString()
+  departmentName?: string;
+
+  @IsOptional()
+  @IsString()
   positionId?: string | null;
 
   @IsOptional()
   @IsString()
+  positionName?: string;
+
+  @IsOptional()
+  @IsString()
   managerId?: string | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  baseSalary?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  allowance?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  overtimeRate?: number;
 }

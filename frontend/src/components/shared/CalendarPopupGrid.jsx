@@ -27,7 +27,7 @@ export default function CalendarPopupGrid({
   onClose,
 }) {
   return (
-    <div className="mt-2 bg-white rounded-2xl border border-[#dcd7cb] shadow-xl p-4 sm:p-5 z-40 relative animate-in fade-in duration-150">
+    <div className="mt-2 bg-white rounded-2xl border border-[#dcd7cb] shadow-xl p-3.5 @md:p-5 z-40 relative animate-in fade-in duration-150">
       {/* Step Indicator & Quick Chips */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-stone-100">
         <div className="flex items-center gap-1.5">

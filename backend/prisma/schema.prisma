@@ -96,6 +96,7 @@ model Employee {
   nik             String?         @unique
   phone           String?
   address         String?
+  photoUrl        String?         @db.LongText
   birthDate       DateTime?
   joinDate        DateTime        @default(now())
   contractEndDate DateTime?

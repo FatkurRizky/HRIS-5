@@ -167,6 +167,44 @@ export class EmployeeService {
     return this.withContractWarning(employee);
   }
 
+  private async resolveDepartmentAndPosition(
+    tx: {
+      department: PrismaService['department'];
+      position: PrismaService['position'];
+    },
+    dto: {
+      departmentId?: string | null;
+      departmentName?: string;
+      positionId?: string | null;
+      positionName?: string;
+      baseSalary?: number;
+    },
+  ) {
+    let resolvedDeptId = dto.departmentId;
+    if (!resolvedDeptId && dto.departmentName?.trim()) {
+      const deptName = dto.departmentName.trim();
+      const dept = await tx.department.upsert({
+        where: { name: deptName },
+        update: {},
+        create: { name: deptName, description: `Departemen ${deptName}` },
+      });
+      resolvedDeptId = dept.id;
+    }
+
+    let resolvedPosId = dto.positionId;
+    if (!resolvedPosId && dto.positionName?.trim()) {
+      const posName = dto.positionName.trim();
+      const pos = await tx.position.upsert({
+        where: { name: posName },
+        update: {},
+        create: { name: posName, baseSalary: dto.baseSalary ?? 10000000 },
+      });
+      resolvedPosId = pos.id;
+    }
+
+    return { resolvedDeptId, resolvedPosId };
+  }
+
   async create(
     dto: CreateEmployeeDto,
     actor?: { id?: string; email?: string },
@@ -200,43 +238,26 @@ export class EmployeeService {
     }
 
     const passwordHash = await hash(dto.password, SALT_ROUNDS);
+    const assignedRole = dto.role ?? 'EMPLOYEE';
 
-    const defaultManager = !dto.managerId
-      ? await this.prisma.employee.findFirst({
-          where: { user: { role: 'MANAGER' } },
-          select: { id: true },
-        })
-      : null;
+    const defaultManager =
+      !dto.managerId && assignedRole === 'EMPLOYEE'
+        ? await this.prisma.employee.findFirst({
+            where: { user: { role: 'MANAGER' } },
+            select: { id: true },
+          })
+        : null;
 
     const created = await this.prisma.$transaction(async (tx) => {
-      let resolvedDeptId = dto.departmentId ?? null;
-      if (!resolvedDeptId && dto.departmentName?.trim()) {
-        const deptName = dto.departmentName.trim();
-        const dept = await tx.department.upsert({
-          where: { name: deptName },
-          update: {},
-          create: { name: deptName, description: `Departemen ${deptName}` },
-        });
-        resolvedDeptId = dept.id;
-      }
-
-      let resolvedPosId = dto.positionId ?? null;
-      if (!resolvedPosId && dto.positionName?.trim()) {
-        const posName = dto.positionName.trim();
-        const pos = await tx.position.upsert({
-          where: { name: posName },
-          update: {},
-          create: { name: posName, baseSalary: dto.baseSalary ?? 10000000 },
-        });
-        resolvedPosId = pos.id;
-      }
+      const { resolvedDeptId, resolvedPosId } =
+        await this.resolveDepartmentAndPosition(tx, dto);
 
       const user = await tx.user.create({
         data: {
           name: dto.name.trim(),
           email,
           password: passwordHash,
-          role: dto.role ?? 'EMPLOYEE',
+          role: assignedRole,
         },
       });
 
@@ -246,6 +267,7 @@ export class EmployeeService {
           nik: dto.nik?.trim() || `KRB-${Date.now().toString().slice(-4)}`,
           phone: dto.phone?.trim() ?? null,
           address: dto.address?.trim() ?? null,
+          photoUrl: dto.photoUrl?.trim() || null,
           birthDate: dto.birthDate ? new Date(dto.birthDate) : null,
           joinDate: dto.joinDate ? new Date(dto.joinDate) : new Date(),
           contractEndDate: dto.contractEndDate
@@ -253,8 +275,8 @@ export class EmployeeService {
             : null,
           leaveQuota: dto.leaveQuota ?? 12,
           status: dto.status ?? 'PROBATION',
-          departmentId: resolvedDeptId,
-          positionId: resolvedPosId,
+          departmentId: resolvedDeptId ?? null,
+          positionId: resolvedPosId ?? null,
           managerId: dto.managerId ?? defaultManager?.id ?? null,
         },
         include: EMPLOYEE_INCLUDE,
@@ -324,7 +346,11 @@ export class EmployeeService {
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      if (dto.name !== undefined || dto.email !== undefined || dto.role !== undefined) {
+      if (
+        dto.name !== undefined ||
+        dto.email !== undefined ||
+        dto.role !== undefined
+      ) {
         await tx.user.update({
           where: { id: employee.userId },
           data: {
@@ -333,6 +359,36 @@ export class EmployeeService {
               ? { email: dto.email.trim().toLowerCase() }
               : {}),
             ...(dto.role !== undefined ? { role: dto.role } : {}),
+          },
+        });
+      }
+
+      const { resolvedDeptId, resolvedPosId } =
+        await this.resolveDepartmentAndPosition(tx, dto);
+
+      if (
+        dto.baseSalary !== undefined ||
+        dto.allowance !== undefined ||
+        dto.overtimeRate !== undefined
+      ) {
+        await tx.salary.upsert({
+          where: { employeeId: id },
+          update: {
+            ...(dto.baseSalary !== undefined
+              ? { baseSalary: dto.baseSalary }
+              : {}),
+            ...(dto.allowance !== undefined
+              ? { allowance: dto.allowance }
+              : {}),
+            ...(dto.overtimeRate !== undefined
+              ? { overtimeRate: dto.overtimeRate }
+              : {}),
+          },
+          create: {
+            employeeId: id,
+            baseSalary: dto.baseSalary ?? 10000000,
+            allowance: dto.allowance ?? 0,
+            overtimeRate: dto.overtimeRate ?? 0,
           },
         });
       }
@@ -346,6 +402,9 @@ export class EmployeeService {
             : {}),
           ...(dto.address !== undefined
             ? { address: dto.address?.trim() || null }
+            : {}),
+          ...(dto.photoUrl !== undefined
+            ? { photoUrl: dto.photoUrl?.trim() || null }
             : {}),
           ...(dto.birthDate !== undefined
             ? { birthDate: dto.birthDate ? new Date(dto.birthDate) : null }
@@ -364,11 +423,11 @@ export class EmployeeService {
             ? { leaveQuota: dto.leaveQuota }
             : {}),
           ...(dto.status !== undefined ? { status: dto.status } : {}),
-          ...(dto.departmentId !== undefined
-            ? { departmentId: dto.departmentId || null }
+          ...(resolvedDeptId !== undefined
+            ? { departmentId: resolvedDeptId || null }
             : {}),
-          ...(dto.positionId !== undefined
-            ? { positionId: dto.positionId || null }
+          ...(resolvedPosId !== undefined
+            ? { positionId: resolvedPosId || null }
             : {}),
           ...(dto.managerId !== undefined
             ? { managerId: dto.managerId || null }

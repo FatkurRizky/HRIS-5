@@ -44,10 +44,19 @@ export default function TrainCalendarPicker({
         setIsOpen(false)
       }
     }
+    const handleFormSubmit = () => {
+      setIsOpen(false)
+      setSelectingStep('start')
+    }
+    const formEl = containerRef.current?.closest('form')
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside)
+      formEl?.addEventListener('submit', handleFormSubmit)
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      formEl?.removeEventListener('submit', handleFormSubmit)
+    }
   }, [isOpen])
 
   const calendarCells = useMemo(
@@ -100,6 +109,7 @@ export default function TrainCalendarPicker({
     onChange({ startDate: preset.startDate, endDate: preset.endDate })
     setViewYear(preset.year)
     setViewMonth(preset.month)
+    setSelectingStep('start')
   }
 
   const { totalDays, workDays, weekendDays } = useMemo(
@@ -108,7 +118,7 @@ export default function TrainCalendarPicker({
   )
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className="relative @container" ref={containerRef}>
       {/* Trigger Box Ala Pemesanan Tiket Kereta Api (Mulai ⇄ Selesai) */}
       <div
         onClick={() => {
@@ -123,21 +133,21 @@ export default function TrainCalendarPicker({
             : 'border-[#e8e4db] hover:border-[#c44d27]/60'
         }`}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-11 items-center gap-2.5">
+        <div className="grid grid-cols-1 @md:grid-cols-11 items-center gap-2.5">
           <div
             onClick={(e) => {
               e.stopPropagation()
               setIsOpen(true)
               setSelectingStep('start')
             }}
-            className={`sm:col-span-5 p-2.5 rounded-xl border transition ${
+            className={`@md:col-span-5 p-2.5 rounded-xl border transition ${
               isOpen && selectingStep === 'start'
                 ? 'bg-[#fef3eb] border-[#c44d27]'
                 : 'bg-white border-stone-200/80 hover:border-stone-300'
             }`}
           >
             <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-1">
-              <IconCalendar className="w-3.5 h-3.5 text-[#c44d27]" />
+              <IconCalendar className="w-3.5 h-3.5 text-[#c44d27] shrink-0" />
               <span>Tanggal Mulai Cuti</span>
             </div>
             {startDate ? (
@@ -151,7 +161,7 @@ export default function TrainCalendarPicker({
             )}
           </div>
 
-          <div className="sm:col-span-1 flex sm:flex-col items-center justify-center py-0.5">
+          <div className="@md:col-span-1 flex @md:flex-col items-center justify-center py-0.5">
             <div className="w-7 h-7 rounded-full bg-[#fef3eb] border border-[#f5d0b8] text-[#c44d27] flex items-center justify-center text-xs font-bold shadow-2xs">
               <IconArrowLeftRight className="w-3.5 h-3.5" />
             </div>
@@ -163,14 +173,14 @@ export default function TrainCalendarPicker({
               setIsOpen(true)
               setSelectingStep('end')
             }}
-            className={`sm:col-span-5 p-2.5 rounded-xl border transition ${
+            className={`@md:col-span-5 p-2.5 rounded-xl border transition ${
               isOpen && selectingStep === 'end'
                 ? 'bg-[#fef3eb] border-[#c44d27]'
                 : 'bg-white border-stone-200/80 hover:border-stone-300'
             }`}
           >
             <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-1">
-              <IconCalendarCheck className="w-3.5 h-3.5 text-[#c44d27]" />
+              <IconCalendarCheck className="w-3.5 h-3.5 text-[#c44d27] shrink-0" />
               <span>Tanggal Selesai Cuti</span>
             </div>
             {endDate ? (

@@ -1,7 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import api from '../lib/api'
-import { AVATAR_COLORS } from '../lib/constants'
-import { formatStatusLabel, getInitials } from '../lib/formatters'
+import {
+  INITIAL_EMPLOYEES,
+  isLocalEmployeeId,
+  mapApiEmployeeToView,
+} from '../lib/employeeUtils'
 import useAuthEnsure from '../lib/useAuthEnsure'
 import useLiveClock from '../lib/useLiveClock'
 import useToast from '../lib/useToast'
@@ -19,14 +22,6 @@ import {
   IconCreditCard,
 } from './shared/Icons'
 
-const INITIAL_EMPLOYEES = [
-  { id: 'emp-1', init: 'BP', name: 'Bima Pratama', email: 'bima@kerabat.id', role: 'Backend Developer', dept: 'Engineering', status: 'Tetap', bg: 'bg-[#0f3832]' },
-  { id: 'emp-2', init: 'DL', name: 'Dewi Lestari', email: 'dewi@kerabat.id', role: 'UI Designer', dept: 'Engineering', status: 'Kontrak', bg: 'bg-[#285a84]' },
-  { id: 'emp-3', init: 'KS', name: 'Kevin Santoso', email: 'kevin@kerabat.id', role: 'QA Engineer', dept: 'Engineering', status: 'Probation', bg: 'bg-[#c57b1b]' },
-  { id: 'emp-4', init: 'AS', name: 'Agus Salim', email: 'agus@kerabat.id', role: 'Payroll Specialist', dept: 'HR', status: 'Tetap', bg: 'bg-[#7c3aed]' },
-  { id: 'emp-5', init: 'MP', name: 'Maya Putri', email: 'maya@kerabat.id', role: 'Recruiter', dept: 'HR', status: 'Kontrak', bg: 'bg-[#d94826]' },
-]
-
 const NAV_ITEMS = [
   { id: 'beranda', Icon: IconDashboard, label: 'Beranda' },
   { id: 'karyawan', Icon: IconUsers, label: 'Karyawan' },
@@ -37,11 +32,13 @@ const NAV_ITEMS = [
 
 export default function HRPortal({ currentUser, onLogout }) {
   const [activeTab, setActiveTab] = useState('beranda')
+  const localShowcaseRef = useRef(INITIAL_EMPLOYEES)
   const [employees, setEmployees] = useState(INITIAL_EMPLOYEES)
   const [departments, setDepartments] = useState([])
   const [positions, setPositions] = useState([])
   const [hrLeaveQueue, setHrLeaveQueue] = useState([])
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [editingEmployee, setEditingEmployee] = useState(null)
 
   const { currentTime, currentDateStr } = useLiveClock()
   const { toast, showToast } = useToast()
@@ -63,35 +60,16 @@ export default function HRPortal({ currentUser, onLogout }) {
         setPositions(posRes.value.data)
       }
 
-      if (
-        empRes.status === 'fulfilled' &&
-        Array.isArray(empRes.value.data) &&
-        empRes.value.data.length > 0
-      ) {
-        const mappedFromDb = empRes.value.data.map((emp, idx) => ({
-          id: emp.id,
-          nik: emp.nik || '',
-          init: getInitials(emp.user?.name),
-          name: emp.user?.name || 'Karyawan',
-          email: emp.user?.email || '',
-          role:
-            emp.position?.name ||
-            (emp.user?.role === 'HR'
-              ? 'HR Specialist'
-              : emp.user?.role === 'MANAGER'
-                ? 'Manager'
-                : 'Staff'),
-          dept: emp.department?.name || 'Engineering',
-          status: formatStatusLabel(emp.status),
-          bg: AVATAR_COLORS[idx % AVATAR_COLORS.length],
-        }))
-
+      if (empRes.status === 'fulfilled' && Array.isArray(empRes.value.data)) {
+        const mappedFromDb = empRes.value.data.map((emp, idx) =>
+          mapApiEmployeeToView(emp, idx)
+        )
         const existingNames = new Set(
           mappedFromDb.map((e) => e.name.toLowerCase())
         )
         setEmployees([
           ...mappedFromDb,
-          ...INITIAL_EMPLOYEES.filter(
+          ...localShowcaseRef.current.filter(
             (e) => !existingNames.has(e.name.toLowerCase())
           ),
         ])
@@ -135,15 +113,40 @@ export default function HRPortal({ currentUser, onLogout }) {
         </div>
       )}
 
-      {/* Modal Tambah Karyawan Baru */}
+      {/* Modal Tambah / Edit Karyawan */}
       <AddEmployeeModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        isOpen={isAddModalOpen || Boolean(editingEmployee)}
+        mode={editingEmployee ? 'edit' : 'create'}
+        initialData={editingEmployee}
+        onClose={() => {
+          setIsAddModalOpen(false)
+          setEditingEmployee(null)
+        }}
         departments={departments}
         positions={positions}
+        employees={employees}
         employeeCount={employees.length}
         ensureToken={ensureHrToken}
-        onCreated={(added) => setEmployees((prev) => [added, ...prev])}
+        onCreated={(added) => {
+          if (isLocalEmployeeId(added.id)) {
+            localShowcaseRef.current = [added, ...localShowcaseRef.current]
+          }
+          setEmployees((prev) => [added, ...prev])
+          fetchBackendEmployees()
+        }}
+        onUpdated={(updated) => {
+          if (isLocalEmployeeId(updated.id)) {
+            localShowcaseRef.current = localShowcaseRef.current.map((item) =>
+              item.id === updated.id ? updated : item
+            )
+          }
+          setEmployees((prev) =>
+            prev.map((item) => (item.id === updated.id ? updated : item))
+          )
+          if (!isLocalEmployeeId(updated.id)) {
+            fetchBackendEmployees()
+          }
+        }}
         showToast={showToast}
       />
 
@@ -213,7 +216,32 @@ export default function HRPortal({ currentUser, onLogout }) {
         {activeTab === 'karyawan' && (
           <HRKaryawanTab
             employees={employees}
-            onOpenAddModal={() => setIsAddModalOpen(true)}
+            departments={departments}
+            positions={positions}
+            ensureToken={ensureHrToken}
+            onOpenAddModal={() => {
+              setEditingEmployee(null)
+              setIsAddModalOpen(true)
+            }}
+            onEditEmployee={(emp) => setEditingEmployee(emp)}
+            onDeleteEmployee={(deletedId) => {
+              localShowcaseRef.current = localShowcaseRef.current.filter(
+                (e) => e.id !== deletedId
+              )
+              setEmployees((prev) => prev.filter((e) => e.id !== deletedId))
+            }}
+            onAssignManager={(empId, managerId, managerName) => {
+              localShowcaseRef.current = localShowcaseRef.current.map((e) =>
+                e.id === empId ? { ...e, managerId, managerName } : e
+              )
+              setEmployees((prev) =>
+                prev.map((e) =>
+                  e.id === empId ? { ...e, managerId, managerName } : e
+                )
+              )
+            }}
+            onRefreshMaster={fetchBackendEmployees}
+            showToast={showToast}
           />
         )}
 
@@ -231,7 +259,11 @@ export default function HRPortal({ currentUser, onLogout }) {
         )}
 
         {activeTab === 'payroll' && (
-          <HRPayrollTab ensureToken={ensureHrToken} showToast={showToast} />
+          <HRPayrollTab
+            ensureToken={ensureHrToken}
+            onRefreshEmployees={fetchBackendEmployees}
+            showToast={showToast}
+          />
         )}
       </main>
     </div>

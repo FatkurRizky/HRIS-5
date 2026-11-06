@@ -1,5 +1,10 @@
 import { useState } from 'react'
 import api from '../../lib/api'
+import TrainCalendarPicker from '../TrainCalendarPicker'
+import {
+  formatKaiDate,
+  calculateLeaveDays,
+} from '../../lib/calendarUtils'
 
 /**
  * Tab 4 Portal HR: Antrean Persetujuan Cuti Layer 2 & Pengajuan Cuti Pribadi HR (Page 12 desain_UI.pdf).
@@ -13,17 +18,25 @@ export default function HRCutiTab({
   const [processingLeaveId, setProcessingLeaveId] = useState(null)
   const [leaveForm, setLeaveForm] = useState({
     type: 'Cuti tahunan',
-    dateRange: '3 sampai 5 November 2026',
+    startDate: '',
+    endDate: '',
     reason: '',
   })
   const [myLeaves, setMyLeaves] = useState([
     {
       id: 1,
       type: 'Cuti tahunan',
+      workDays: 3,
       dates: '22 sampai 24 Okt',
       status: 'Disetujui',
     },
-    { id: 2, type: 'Izin', dates: '9 Okt', status: 'Disetujui' },
+    {
+      id: 2,
+      type: 'Izin',
+      workDays: 1,
+      dates: '9 Okt',
+      status: 'Disetujui',
+    },
   ])
 
   const handleHrLeaveAction = async (leave, action) => {
@@ -120,24 +133,61 @@ export default function HRCutiTab({
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         {/* Left Card: Ajukan Cuti */}
         <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs">
           <h3 className="text-sm font-bold text-stone-900 mb-4">Ajukan cuti</h3>
           <form
             onSubmit={(e) => {
               e.preventDefault()
+              if (!leaveForm.startDate || !leaveForm.endDate) {
+                showToast(
+                  'error',
+                  'Mohon pilih tanggal mulai dan selesai cuti pada kalender.'
+                )
+                return
+              }
+              const { workDays } = calculateLeaveDays(
+                leaveForm.startDate,
+                leaveForm.endDate
+              )
+              if (workDays <= 0) {
+                showToast(
+                  'error',
+                  'Rentang tanggal yang dipilih hanya berisi akhir pekan (Sabtu/Minggu). Pilih minimal 1 hari kerja.'
+                )
+                return
+              }
+
+              const startFormatted =
+                formatKaiDate(leaveForm.startDate) || leaveForm.startDate
+              const endFormatted =
+                formatKaiDate(leaveForm.endDate) || leaveForm.endDate
+              const dateLabel =
+                startFormatted === endFormatted
+                  ? startFormatted
+                  : `${startFormatted} s/d ${endFormatted}`
+
               setMyLeaves((prev) => [
                 {
                   id: Date.now(),
                   type: leaveForm.type,
-                  dates: leaveForm.dateRange || '3 sampai 5 Nov',
+                  workDays,
+                  dates: dateLabel,
                   status: 'Disetujui',
                 },
                 ...prev,
               ])
-              setLeaveForm({ ...leaveForm, reason: '' })
-              showToast('success', 'Pengajuan cuti berhasil dikirim!')
+              setLeaveForm({
+                type: 'Cuti tahunan',
+                startDate: '',
+                endDate: '',
+                reason: '',
+              })
+              showToast(
+                'success',
+                `Pengajuan cuti (${workDays} hari kerja) berhasil dikirim!`
+              )
             }}
             className="space-y-4 text-xs"
           >
@@ -160,15 +210,14 @@ export default function HRCutiTab({
 
             <div>
               <label className="font-bold text-stone-700 block mb-1.5">
-                Tanggal
+                Tanggal Cuti (Klik untuk buka kalender)
               </label>
-              <input
-                type="text"
-                value={leaveForm.dateRange}
-                onChange={(e) =>
-                  setLeaveForm({ ...leaveForm, dateRange: e.target.value })
+              <TrainCalendarPicker
+                startDate={leaveForm.startDate}
+                endDate={leaveForm.endDate}
+                onChange={({ startDate, endDate }) =>
+                  setLeaveForm((prev) => ({ ...prev, startDate, endDate }))
                 }
-                className="w-full bg-[#f4f3ef] border border-stone-200 rounded-xl px-4 py-3 text-stone-800 outline-none"
               />
             </div>
 
@@ -211,6 +260,7 @@ export default function HRCutiTab({
                   <div>
                     <div className="text-sm font-bold text-stone-900">
                       {lv.type}
+                      {lv.workDays ? ` (${lv.workDays} hari kerja)` : ''}
                     </div>
                     <div className="text-xs text-stone-500 mt-0.5">
                       {lv.dates}

@@ -21,11 +21,14 @@ function getStatusPill(status) {
 }
 
 /**
- * Tab 5 Portal HR: Kalkulasi Payroll Bulanan Nyata & Unduh PDF Resmi (Page 13 desain_UI.pdf).
- * Mendukung pemilihan bulan selanjutnya, hitung otomatis seluruh karyawan (termasuk karyawan baru),
- * persetujuan massal/individual, dan unduhan slip PDF.
+ * Tab 5 Portal HR: Master Gaji Karyawan, Kalkulasi Payroll Otomatis,
+ * Approval Payroll (Individual & Batch), Revisi, serta Unduh Slip Gaji Digital (PDF).
  */
-export default function HRPayrollTab({ ensureToken, showToast }) {
+export default function HRPayrollTab({
+  ensureToken,
+  onRefreshEmployees,
+  showToast,
+}) {
   const [period, setPeriod] = useState(() => {
     const now = new Date()
     return { month: now.getMonth() + 1, year: now.getFullYear() }
@@ -36,6 +39,14 @@ export default function HRPayrollTab({ ensureToken, showToast }) {
   const [actionLoading, setActionLoading] = useState(false)
   const [downloadingPdf, setDownloadingPdf] = useState(false)
 
+  // State Pengelolaan Master Gaji per Karyawan (PUT /salaries/:employeeId)
+  const [isEditingSalary, setIsEditingSalary] = useState(false)
+  const [salaryForm, setSalaryForm] = useState({
+    baseSalary: 10000000,
+    allowance: 2000000,
+    overtimeRate: 0,
+  })
+
   const loadPeriodPayroll = useCallback(async () => {
     setLoading(true)
     try {
@@ -45,7 +56,6 @@ export default function HRPayrollTab({ ensureToken, showToast }) {
       })
       let list = Array.isArray(res.data) ? res.data : []
 
-      // Jika periode tersebut belum pernah dihitung, otomatis kalkulasi draft awal dari data karyawan aktif
       if (list.length === 0) {
         const genRes = await api.post('/payroll/generate', {
           month: period.month,
@@ -70,10 +80,55 @@ export default function HRPayrollTab({ ensureToken, showToast }) {
     loadPeriodPayroll()
   }, [loadPeriodPayroll])
 
-  const handleRecalculate = async () => {
+  const selectedRecord =
+    records.find((r) => r.id === selectedId) || records[0] || null
+
+  const runPayrollAction = async (workFn, defaultErrorMsg) => {
     setActionLoading(true)
     try {
       await ensureToken()
+      await workFn()
+    } catch (err) {
+      showToast('error', err?.response?.data?.message || defaultErrorMsg)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const openMasterSalaryEditor = (rec) => {
+    if (!rec) return
+    setSalaryForm({
+      baseSalary: rec.baseSalary ?? 10000000,
+      allowance: rec.allowance ?? 2000000,
+      overtimeRate: rec.employee?.salary?.overtimeRate ?? 0,
+    })
+    setIsEditingSalary(true)
+  }
+
+  const handleSaveMasterSalary = (e) => {
+    e.preventDefault()
+    if (!selectedRecord?.employeeId) return
+    return runPayrollAction(async () => {
+      await api.put(`/salaries/${selectedRecord.employeeId}`, {
+        baseSalary: Number(salaryForm.baseSalary) || 0,
+        allowance: Number(salaryForm.allowance) || 0,
+        overtimeRate: Number(salaryForm.overtimeRate) || 0,
+      })
+      await api.post('/payroll/generate', {
+        month: period.month,
+        year: period.year,
+      })
+      await Promise.all([loadPeriodPayroll(), onRefreshEmployees?.()])
+      setIsEditingSalary(false)
+      showToast(
+        'success',
+        `Master gaji ${selectedRecord.employee?.user?.name || 'karyawan'} berhasil diperbarui & dihitung ulang!`
+      )
+    }, 'Gagal menyimpan komponen master gaji.')
+  }
+
+  const handleRecalculate = () =>
+    runPayrollAction(async () => {
       const res = await api.post('/payroll/generate', {
         month: period.month,
         year: period.year,
@@ -87,20 +142,10 @@ export default function HRPayrollTab({ ensureToken, showToast }) {
         'success',
         res.data?.message || 'Kalkulasi payroll berhasil diperbarui!'
       )
-    } catch (err) {
-      showToast(
-        'error',
-        err?.response?.data?.message || 'Gagal menghitung ulang payroll.'
-      )
-    } finally {
-      setActionLoading(false)
-    }
-  }
+    }, 'Gagal menghitung ulang payroll.')
 
-  const handleApprovePeriod = async () => {
-    setActionLoading(true)
-    try {
-      await ensureToken()
+  const handleApprovePeriod = () =>
+    runPayrollAction(async () => {
       const res = await api.post('/payroll/approve-period', {
         month: period.month,
         year: period.year,
@@ -111,21 +156,37 @@ export default function HRPayrollTab({ ensureToken, showToast }) {
         'success',
         res.data?.message || 'Batch payroll berhasil disetujui HR!'
       )
-    } catch (err) {
+    }, 'Gagal menyetujui batch payroll.')
+
+  const handleApproveSingle = (record) => {
+    if (!record?.id) return
+    return runPayrollAction(async () => {
+      await api.patch(`/payroll/${record.id}/approve`)
+      await loadPeriodPayroll()
       showToast(
-        'error',
-        err?.response?.data?.message || 'Gagal menyetujui batch payroll.'
+        'success',
+        `Slip gaji ${record.employee?.user?.name || 'karyawan'} berhasil disetujui HR!`
       )
-    } finally {
-      setActionLoading(false)
-    }
+    }, 'Gagal menyetujui slip gaji.')
   }
 
-  const handleMarkPaid = async (record) => {
+  const handleReviseSingle = (record) => {
     if (!record?.id) return
-    setActionLoading(true)
-    try {
-      await ensureToken()
+    return runPayrollAction(async () => {
+      await api.patch(`/payroll/${record.id}/revise`, {
+        note: 'Dikembalikan ke Draft oleh HR untuk penyesuaian komponen gaji',
+      })
+      await loadPeriodPayroll()
+      showToast(
+        'info',
+        `Slip gaji ${record.employee?.user?.name || 'karyawan'} dikembalikan ke status Draft.`
+      )
+    }, 'Gagal merevisi slip gaji.')
+  }
+
+  const handleMarkPaid = (record) => {
+    if (!record?.id) return
+    return runPayrollAction(async () => {
       if (record.status === 'DRAFT') {
         await api.patch(`/payroll/${record.id}/approve`)
       }
@@ -135,14 +196,7 @@ export default function HRPayrollTab({ ensureToken, showToast }) {
         'success',
         `Slip gaji ${record.employee?.user?.name || 'karyawan'} ditandai telah dicairkan!`
       )
-    } catch (err) {
-      showToast(
-        'error',
-        err?.response?.data?.message || 'Gagal menandai pencairan gaji.'
-      )
-    } finally {
-      setActionLoading(false)
-    }
+    }, 'Gagal menandai pencairan gaji.')
   }
 
   const handleDownloadPdf = async (record) => {
@@ -175,9 +229,6 @@ export default function HRPayrollTab({ ensureToken, showToast }) {
     }
   }
 
-  const selectedRecord =
-    records.find((r) => r.id === selectedId) || records[0] || null
-
   const allApproved =
     records.length > 0 &&
     records.every((r) => r.status === 'APPROVED' || r.status === 'PAID')
@@ -192,8 +243,8 @@ export default function HRPayrollTab({ ensureToken, showToast }) {
             Payroll {MONTH_NAMES[period.month - 1]} {period.year}
           </h2>
           <p className="text-xs text-stone-500 mt-1">
-            Kalkulasi otomatis dari gaji pokok, absensi, lembur, dan potongan
-            seluruh karyawan terdaftar
+            Master gaji karyawan, kalkulasi otomatis, persetujuan payroll, dan
+            slip gaji digital (PDF)
           </p>
         </div>
 
@@ -312,7 +363,10 @@ export default function HRPayrollTab({ ensureToken, showToast }) {
                   return (
                     <tr
                       key={rec.id}
-                      onClick={() => setSelectedId(rec.id)}
+                      onClick={() => {
+                        setSelectedId(rec.id)
+                        setIsEditingSalary(false)
+                      }}
                       className={`cursor-pointer transition ${
                         isSelected ? 'bg-[#f3f7f4]' : 'hover:bg-stone-50'
                       }`}
@@ -356,24 +410,134 @@ export default function HRPayrollTab({ ensureToken, showToast }) {
           </table>
         </div>
 
-        {/* Slip Gaji Preview (Right Side) */}
-        <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-xs">
-          <div className="flex items-center justify-between mb-4">
+        {/* Slip Gaji Preview & Master Gaji Editor (Right Side) */}
+        <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-xs space-y-4">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <h3 className="text-sm font-bold text-stone-900">
               Rincian slip gaji
             </h3>
-            {selectedRecord && selectedRecord.status !== 'PAID' && (
-              <button
-                type="button"
-                disabled={actionLoading}
-                onClick={() => handleMarkPaid(selectedRecord)}
-                className="text-[11px] font-bold text-[#1b7a43] hover:underline cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
-              >
-                <span>Tandai Cair</span>
-                <IconCheck className="w-3.5 h-3.5" />
-              </button>
+            {selectedRecord && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedRecord.status !== 'PAID' && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      isEditingSalary
+                        ? setIsEditingSalary(false)
+                        : openMasterSalaryEditor(selectedRecord)
+                    }
+                    className="text-[11px] font-bold text-[#285a84] hover:underline cursor-pointer"
+                  >
+                    {isEditingSalary ? 'Tutup Master Gaji' : 'Atur Master Gaji'}
+                  </button>
+                )}
+                {selectedRecord.status === 'DRAFT' && (
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() => handleApproveSingle(selectedRecord)}
+                    className="text-[11px] font-bold text-[#0f3832] hover:underline cursor-pointer disabled:opacity-50"
+                  >
+                    Setujui Slip
+                  </button>
+                )}
+                {selectedRecord.status === 'APPROVED' && (
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() => handleReviseSingle(selectedRecord)}
+                    className="text-[11px] font-bold text-[#b86d1a] hover:underline cursor-pointer disabled:opacity-50"
+                  >
+                    Revisi
+                  </button>
+                )}
+                {selectedRecord.status !== 'PAID' && (
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() => handleMarkPaid(selectedRecord)}
+                    className="text-[11px] font-bold text-[#1b7a43] hover:underline cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
+                  >
+                    <span>Tandai Cair</span>
+                    <IconCheck className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             )}
           </div>
+
+          {/* Form Master Gaji per Karyawan */}
+          {selectedRecord && isEditingSalary && (
+            <form
+              onSubmit={handleSaveMasterSalary}
+              className="p-3.5 rounded-xl bg-[#f8f7f3] border border-stone-200 space-y-2.5 text-xs"
+            >
+              <div className="font-bold text-stone-800">
+                Master Gaji: {selectedRecord.employee?.user?.name}
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-stone-600 block mb-1">
+                  Gaji Pokok (Rp)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={salaryForm.baseSalary}
+                  onChange={(e) =>
+                    setSalaryForm({ ...salaryForm, baseSalary: e.target.value })
+                  }
+                  className="w-full bg-white border border-stone-200 rounded-lg px-3 py-1.5 text-stone-900 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-stone-600 block mb-1">
+                  Tunjangan Tetap (Rp)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={salaryForm.allowance}
+                  onChange={(e) =>
+                    setSalaryForm({ ...salaryForm, allowance: e.target.value })
+                  }
+                  className="w-full bg-white border border-stone-200 rounded-lg px-3 py-1.5 text-stone-900 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-stone-600 block mb-1">
+                  Tarif Lembur / Jam (Rp, 0 = otomatis 1/173 gaji pokok)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={salaryForm.overtimeRate}
+                  onChange={(e) =>
+                    setSalaryForm({
+                      ...salaryForm,
+                      overtimeRate: e.target.value,
+                    })
+                  }
+                  className="w-full bg-white border border-stone-200 rounded-lg px-3 py-1.5 text-stone-900 outline-none"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsEditingSalary(false)}
+                  className="px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-stone-600 font-semibold cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  className="px-3.5 py-1.5 rounded-lg bg-[#0f3832] hover:bg-[#14473f] text-white font-bold cursor-pointer disabled:opacity-50"
+                >
+                  Simpan Master Gaji
+                </button>
+              </div>
+            </form>
+          )}
 
           {selectedRecord ? (
             <PayslipCard

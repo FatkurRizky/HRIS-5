@@ -294,10 +294,39 @@ describe('AttendanceService (Timezone & Late Handling)', () => {
       },
     );
 
-    it('getMonthlyRecap should query employees filtered with role EMPLOYEE', async () => {
-      prismaMock.employee.findMany.mockResolvedValue([]);
+    it('getMonthlyRecap should filter by role EMPLOYEE and calculate workHours, late, and alpha', async () => {
+      prismaMock.employee.findMany.mockResolvedValue([
+        {
+          id: 'emp-1',
+          nik: 'EMP-001',
+          user: { id: 'u-1', name: 'Budi', email: 'budi@kerabat.id' },
+          department: { name: 'Engineering' },
+          position: { name: 'Developer' },
+          attendances: [
+            {
+              status: 'PRESENT',
+              clockIn: new Date('2026-10-01T01:00:00.000Z'),
+              clockOut: new Date('2026-10-01T10:00:00.000Z'), // 9 hours = 540 mins
+              overtimeMinutes: 0,
+            },
+            {
+              status: 'LATE',
+              clockIn: new Date('2026-10-02T01:30:00.000Z'),
+              clockOut: new Date('2026-10-02T11:00:00.000Z'), // 9.5 hours = 570 mins
+              overtimeMinutes: 60,
+            },
+            {
+              status: 'ALPHA',
+              clockIn: null,
+              clockOut: null,
+              overtimeMinutes: 0,
+            },
+          ],
+          leaveRequests: [],
+        },
+      ]);
 
-      await service.getMonthlyRecap(10, 2026);
+      const recap = await service.getMonthlyRecap(10, 2026);
 
       expect(prismaMock.employee.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -306,6 +335,16 @@ describe('AttendanceService (Timezone & Late Handling)', () => {
           },
         }),
       );
+      expect(recap[0].summary).toEqual({
+        present: 2,
+        late: 1,
+        alpha: 1,
+        leave: 0,
+        workMinutes: 1110,
+        workHours: 18.5,
+        overtimeMinutes: 60,
+        overtimeHours: 1,
+      });
     });
 
     it('findAll should filter by employee user role EMPLOYEE', async () => {

@@ -40,6 +40,10 @@ export class CreateEmployeeDto {
   address?: string;
 
   @IsOptional()
+  @IsString()
+  photoUrl?: string;
+
+  @IsOptional()
   @IsDateString()
   birthDate?: string;
 

@@ -53,6 +53,17 @@ export function shiftMonthPeriod(month, year, deltaMonths) {
   return { month: nextMonth, year: nextYear }
 }
 
+export function formatShortDate(dateStr) {
+  if (!dateStr) return '-'
+  const d = new Date(dateStr)
+  if (Number.isNaN(d.getTime())) return String(dateStr).slice(0, 10)
+  return d.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
 export function downloadBlob(blob, filename) {
   const url = window.URL.createObjectURL(blob)
   const link = document.createElement('a')

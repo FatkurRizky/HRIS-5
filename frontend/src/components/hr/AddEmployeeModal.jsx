@@ -1,130 +1,264 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import api from '../../lib/api'
-import { AVATAR_COLORS } from '../../lib/constants'
-import { getInitials, formatStatusLabel } from '../../lib/formatters'
+import {
+  buildEmployeeViewFromForm,
+  getValidManagerCandidates,
+  isLocalEmployeeId,
+} from '../../lib/employeeUtils'
+import { getInitials } from '../../lib/formatters'
 import { IconX } from '../shared/Icons'
+
+const DEFAULT_DEPARTMENTS = [
+  'Engineering',
+  'HR',
+  'Operasional',
+  'Finance',
+  'Product',
+]
 
 const INITIAL_FORM = {
   name: '',
   email: '',
   password: 'kerabat123',
   nik: '',
+  phone: '',
+  address: '',
+  photoUrl: '',
   positionName: 'Frontend Developer',
   departmentName: 'Engineering',
+  managerId: '',
   status: 'TETAP',
+  contractEndDate: '',
   role: 'EMPLOYEE',
   baseSalary: 10000000,
   allowance: 2000000,
 }
 
+function mapEmployeeToForm(emp) {
+  if (!emp) return INITIAL_FORM
+  return {
+    name: emp.name || '',
+    email: emp.email || '',
+    password: '',
+    nik: emp.nik || '',
+    phone: emp.phone || '',
+    address: emp.address || '',
+    photoUrl: emp.photoUrl || '',
+    positionName: emp.role || 'Staff',
+    departmentName: emp.dept || 'Engineering',
+    managerId: emp.managerId || '',
+    status:
+      emp.statusRaw ||
+      (emp.status === 'Tetap'
+        ? 'TETAP'
+        : emp.status === 'Kontrak'
+          ? 'KONTRAK'
+          : 'PROBATION'),
+    contractEndDate: emp.contractEndDate
+      ? String(emp.contractEndDate).slice(0, 10)
+      : '',
+    role: emp.userRole || 'EMPLOYEE',
+    baseSalary: emp.baseSalary ?? 10000000,
+    allowance: emp.allowance ?? 2000000,
+  }
+}
+
 /**
- * Modal Tambah Karyawan Baru (Portal HR).
+ * Modal Tambah & Edit Profil Karyawan (Portal HR).
+ * Mencakup nama, NIK, kontak, alamat, foto profil, jabatan, departemen,
+ * atasan langsung (manager), status & masa berlaku kontrak, serta master gaji.
+ * Catatan privasi: Tidak menggunakan field Kartu Keluarga (KK).
  */
 export default function AddEmployeeModal({
   isOpen,
   onClose,
-  departments,
-  positions,
-  employeeCount,
+  mode = 'create',
+  initialData = null,
+  departments = [],
+  positions = [],
+  employees = [],
+  employeeCount = 0,
   ensureToken,
   onCreated,
+  onUpdated,
   showToast,
 }) {
-  const [newEmp, setNewEmp] = useState(INITIAL_FORM)
+  const isEdit = mode === 'edit' && Boolean(initialData)
+  const [form, setForm] = useState(() =>
+    isEdit ? mapEmployeeToForm(initialData) : INITIAL_FORM
+  )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    if (isOpen) {
+      setError('')
+      setForm(isEdit ? mapEmployeeToForm(initialData) : INITIAL_FORM)
+    }
+  }, [isOpen, isEdit, initialData])
+
   if (!isOpen) return null
+
+  const departmentOptions = Array.from(
+    new Set([
+      ...departments.map((d) => d.name).filter(Boolean),
+      ...DEFAULT_DEPARTMENTS,
+      ...(form.departmentName ? [form.departmentName] : []),
+    ])
+  )
+
+  const isLocalTarget = isEdit && isLocalEmployeeId(initialData?.id)
+  const managerCandidates = getValidManagerCandidates(
+    employees,
+    isEdit ? initialData?.id : null,
+    !isLocalTarget
+  )
+
+  const handlePhotoFileChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 1.5 * 1024 * 1024) {
+      setError('Ukuran file foto maksimal 1.5 MB.')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setForm((prev) => ({ ...prev, photoUrl: reader.result }))
+      }
+    }
+    reader.readAsDataURL(file)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
 
-    if (!newEmp.name.trim()) {
+    if (!form.name.trim()) {
       setError('Nama lengkap karyawan wajib diisi.')
       return
     }
-    if (!newEmp.email.trim()) {
+    if (!form.email.trim()) {
       setError('Email kerja wajib diisi.')
       return
     }
-    if (!newEmp.password || newEmp.password.length < 6) {
+    if (!isEdit && (!form.password || form.password.length < 6)) {
       setError('Kata sandi minimal 6 karakter.')
       return
     }
 
     setSubmitting(true)
+    const selectedManager = employees.find((m) => m.id === form.managerId)
+    const safeBackendManagerId =
+      form.managerId && !isLocalEmployeeId(form.managerId)
+        ? form.managerId
+        : null
+
     try {
       await ensureToken()
       const matchedDept = departments.find(
-        (d) => d.name.toLowerCase() === newEmp.departmentName.toLowerCase()
+        (d) => d.name.toLowerCase() === form.departmentName.trim().toLowerCase()
       )
       const matchedPos = positions.find(
-        (p) => p.name.toLowerCase() === newEmp.positionName.toLowerCase()
+        (p) => p.name.toLowerCase() === form.positionName.trim().toLowerCase()
       )
 
       const payload = {
-        name: newEmp.name.trim(),
-        email: newEmp.email.trim().toLowerCase(),
-        password: newEmp.password,
-        role: newEmp.role,
-        status: newEmp.status,
-        departmentName: newEmp.departmentName,
-        positionName: newEmp.positionName.trim() || 'Staff',
-        ...(newEmp.nik.trim() ? { nik: newEmp.nik.trim() } : {}),
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        role: form.role,
+        status: form.status,
+        phone: form.phone.trim() || (isEdit ? null : undefined),
+        address: form.address.trim() || (isEdit ? null : undefined),
+        photoUrl: form.photoUrl.trim() || (isEdit ? null : undefined),
+        contractEndDate:
+          form.status === 'TETAP'
+            ? isEdit
+              ? null
+              : undefined
+            : form.contractEndDate || (isEdit ? null : undefined),
+        departmentName: form.departmentName.trim() || 'Engineering',
+        positionName: form.positionName.trim() || 'Staff',
+        ...(form.nik.trim()
+          ? { nik: form.nik.trim() }
+          : isEdit
+            ? { nik: null }
+            : {}),
         ...(matchedDept ? { departmentId: matchedDept.id } : {}),
         ...(matchedPos ? { positionId: matchedPos.id } : {}),
-        baseSalary: Number(newEmp.baseSalary) || 10000000,
-        allowance: Number(newEmp.allowance) || 2000000,
+        ...(isEdit || safeBackendManagerId
+          ? { managerId: safeBackendManagerId }
+          : {}),
+        baseSalary: Number(form.baseSalary) || 10000000,
+        allowance: Number(form.allowance) || 0,
       }
 
-      const res = await api.post('/employees', payload)
-      const createdEmp = res.data
-
-      const addedItem = {
-        id: createdEmp?.id || `emp-${Date.now()}`,
-        init: getInitials(newEmp.name),
-        name: newEmp.name.trim(),
-        email: newEmp.email.trim().toLowerCase(),
-        role: newEmp.positionName.trim() || 'Staff',
-        dept: newEmp.departmentName,
-        status: formatStatusLabel(newEmp.status),
-        bg: AVATAR_COLORS[employeeCount % AVATAR_COLORS.length],
+      if (isEdit) {
+        let updatedEmp = null
+        if (!isLocalTarget) {
+          const res = await api.patch(`/employees/${initialData.id}`, payload)
+          updatedEmp = res.data
+        }
+        const mergedItem = buildEmployeeViewFromForm(form, {
+          initialData,
+          apiRecord: updatedEmp,
+          selectedManager,
+          index: employeeCount,
+        })
+        onUpdated?.(mergedItem)
+        onClose()
+        showToast(
+          'success',
+          `Data karyawan ${mergedItem.name} berhasil diperbarui!`
+        )
+        return
       }
 
-      onCreated(addedItem)
-      setNewEmp(INITIAL_FORM)
+      const res = await api.post('/employees', {
+        ...payload,
+        password: form.password,
+      })
+      const addedItem = buildEmployeeViewFromForm(form, {
+        apiRecord: res.data,
+        selectedManager,
+        index: employeeCount,
+      })
+      onCreated?.(addedItem)
+      setForm(INITIAL_FORM)
       onClose()
       showToast(
         'success',
         `Karyawan ${addedItem.name} berhasil ditambahkan ke database!`
       )
     } catch (err) {
-      const backendMsg = err?.response?.data?.message
-      if (
-        err?.response &&
-        (err.response.status === 409 || err.response.status === 400)
-      ) {
+      if (err?.response) {
+        const backendMsg = err.response.data?.message
         setError(
           Array.isArray(backendMsg)
             ? backendMsg.join(', ')
             : backendMsg || 'Gagal menyimpan data karyawan.'
         )
       } else {
-        const fallbackItem = {
-          id: `emp-${Date.now()}`,
-          init: getInitials(newEmp.name),
-          name: newEmp.name.trim(),
-          email: newEmp.email.trim().toLowerCase(),
-          role: newEmp.positionName.trim() || 'Staff',
-          dept: newEmp.departmentName,
-          status: formatStatusLabel(newEmp.status),
-          bg: AVATAR_COLORS[employeeCount % AVATAR_COLORS.length],
+        const fallbackItem = buildEmployeeViewFromForm(form, {
+          initialData: isEdit ? initialData : null,
+          selectedManager,
+          index: employeeCount,
+        })
+        if (isEdit) {
+          onUpdated?.(fallbackItem)
+          showToast(
+            'success',
+            `Data karyawan ${fallbackItem.name} berhasil diperbarui!`
+          )
+        } else {
+          onCreated?.(fallbackItem)
+          showToast(
+            'success',
+            `Karyawan ${fallbackItem.name} berhasil ditambahkan!`
+          )
         }
-        onCreated(fallbackItem)
-        setNewEmp(INITIAL_FORM)
+        setForm(INITIAL_FORM)
         onClose()
-        showToast('success', `Karyawan ${fallbackItem.name} berhasil ditambahkan!`)
       }
     } finally {
       setSubmitting(false)
@@ -133,12 +267,16 @@ export default function AddEmployeeModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-full max-w-lg overflow-hidden">
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-full max-w-xl overflow-hidden">
         <div className="px-6 py-4 bg-[#0f3832] text-white flex items-center justify-between">
           <div>
-            <h3 className="text-base font-bold">Tambah Karyawan Baru</h3>
+            <h3 className="text-base font-bold">
+              {isEdit ? 'Ubah Profil Karyawan' : 'Tambah Karyawan Baru'}
+            </h3>
             <p className="text-[11px] text-stone-300 mt-0.5">
-              Buat akun login dan profil kepegawaian secara langsung
+              {isEdit
+                ? 'Perbarui data profil, kontak, kontrak kerja, struktur atasan, dan komponen gaji'
+                : 'Buat akun login dan profil kepegawaian secara langsung'}
             </p>
           </div>
           <button
@@ -161,6 +299,59 @@ export default function AddEmployeeModal({
             </div>
           )}
 
+          {/* Foto Profil */}
+          <div className="flex items-center gap-4 p-3 rounded-xl bg-[#f8f7f3] border border-stone-200">
+            {form.photoUrl ? (
+              <img
+                src={form.photoUrl}
+                alt={form.name || 'Foto karyawan'}
+                width="48"
+                height="48"
+                className="w-12 h-12 rounded-full object-cover border border-stone-300 shrink-0"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-[#0f3832] text-white font-bold flex items-center justify-center text-sm shrink-0">
+                {getInitials(form.name || 'KR')}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <label className="font-bold text-stone-700 block mb-1">
+                Foto Profil (URL atau Unggah Gambar)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="url"
+                  placeholder="https://contoh.id/foto.jpg"
+                  value={
+                    form.photoUrl.startsWith('data:') ? '' : form.photoUrl
+                  }
+                  onChange={(e) =>
+                    setForm({ ...form, photoUrl: e.target.value })
+                  }
+                  className="flex-1 bg-white border border-stone-200 rounded-lg px-3 py-1.5 text-stone-900 outline-none focus:border-[#0f3832]"
+                />
+                <label className="px-3 py-1.5 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-800 font-semibold cursor-pointer shrink-0">
+                  Pilih File
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoFileChange}
+                    className="hidden"
+                  />
+                </label>
+                {form.photoUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, photoUrl: '' })}
+                    className="text-rose-600 hover:underline font-semibold cursor-pointer"
+                  >
+                    Hapus
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="font-bold text-stone-700 block mb-1">
@@ -170,23 +361,21 @@ export default function AddEmployeeModal({
                 type="text"
                 required
                 placeholder="Contoh: Raka Pratama"
-                value={newEmp.name}
-                onChange={(e) =>
-                  setNewEmp({ ...newEmp, name: e.target.value })
-                }
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
               />
             </div>
 
             <div>
               <label className="font-bold text-stone-700 block mb-1">
-                NIK / ID Karyawan (opsional)
+                NIK / ID Karyawan
               </label>
               <input
                 type="text"
                 placeholder="Otomatis jika dikosongkan"
-                value={newEmp.nik}
-                onChange={(e) => setNewEmp({ ...newEmp, nik: e.target.value })}
+                value={form.nik}
+                onChange={(e) => setForm({ ...form, nik: e.target.value })}
                 className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
               />
             </div>
@@ -201,30 +390,57 @@ export default function AddEmployeeModal({
                 type="email"
                 required
                 placeholder="raka@kerabat.id"
-                value={newEmp.email}
-                onChange={(e) =>
-                  setNewEmp({ ...newEmp, email: e.target.value })
-                }
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
               />
             </div>
 
+            {!isEdit && (
+              <div>
+                <label className="font-bold text-stone-700 block mb-1">
+                  Password awal *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={form.password}
+                  onChange={(e) =>
+                    setForm({ ...form, password: e.target.value })
+                  }
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
+                />
+              </div>
+            )}
+
             <div>
               <label className="font-bold text-stone-700 block mb-1">
-                Password awal *
+                Kontak / No. Telepon
+              </label>
+              <input
+                type="tel"
+                placeholder="0812xxxxxxxx"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
+              />
+            </div>
+
+            <div className={isEdit ? 'sm:col-span-2' : ''}>
+              <label className="font-bold text-stone-700 block mb-1">
+                Alamat Domisili
               </label>
               <input
                 type="text"
-                required
-                value={newEmp.password}
-                onChange={(e) =>
-                  setNewEmp({ ...newEmp, password: e.target.value })
-                }
+                placeholder="Jl. Brawijaya No. 15, Kediri"
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
                 className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
               />
             </div>
           </div>
 
+          {/* Jabatan & Departemen */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="font-bold text-stone-700 block mb-1">
@@ -233,13 +449,29 @@ export default function AddEmployeeModal({
               <input
                 type="text"
                 required
+                list="hr-positions-list"
                 placeholder="Frontend Developer"
-                value={newEmp.positionName}
-                onChange={(e) =>
-                  setNewEmp({ ...newEmp, positionName: e.target.value })
-                }
+                value={form.positionName}
+                onChange={(e) => {
+                  const val = e.target.value
+                  const matched = positions.find(
+                    (p) => p.name.toLowerCase() === val.trim().toLowerCase()
+                  )
+                  setForm((prev) => ({
+                    ...prev,
+                    positionName: val,
+                    ...(matched && matched.baseSalary > 0
+                      ? { baseSalary: matched.baseSalary }
+                      : {}),
+                  }))
+                }}
                 className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
               />
+              <datalist id="hr-positions-list">
+                {positions.map((pos) => (
+                  <option key={pos.id} value={pos.name} />
+                ))}
+              </datalist>
             </div>
 
             <div>
@@ -247,31 +479,68 @@ export default function AddEmployeeModal({
                 Departemen *
               </label>
               <select
-                value={newEmp.departmentName}
+                value={form.departmentName}
                 onChange={(e) =>
-                  setNewEmp({ ...newEmp, departmentName: e.target.value })
+                  setForm({ ...form, departmentName: e.target.value })
                 }
                 className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
               >
-                <option value="Engineering">Engineering</option>
-                <option value="HR">HR</option>
-                <option value="Operasional">Operasional</option>
-                <option value="Finance">Finance</option>
-                <option value="Product">Product</option>
+                {departmentOptions.map((deptName) => (
+                  <option key={deptName} value={deptName}>
+                    {deptName}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
 
+          {/* Struktur Organisasi (Atasan) & Role */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="font-bold text-stone-700 block mb-1">
-                Status Kontrak
+                Atasan Langsung (Manager)
               </label>
               <select
-                value={newEmp.status}
+                value={form.managerId}
                 onChange={(e) =>
-                  setNewEmp({ ...newEmp, status: e.target.value })
+                  setForm({ ...form, managerId: e.target.value })
                 }
+                className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
+              >
+                <option value="">— Tanpa Atasan Langsung / Otomatis —</option>
+                {managerCandidates.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name} ({emp.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="font-bold text-stone-700 block mb-1">
+                Role Akses Sistem
+              </label>
+              <select
+                value={form.role}
+                onChange={(e) => setForm({ ...form, role: e.target.value })}
+                className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
+              >
+                <option value="EMPLOYEE">Employee (Karyawan)</option>
+                <option value="MANAGER">Manager</option>
+                <option value="HR">HR</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Manajemen Kontrak */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <label className="font-bold text-stone-700 block mb-1">
+                Status Kontrak Kerja
+              </label>
+              <select
+                value={form.status}
+                onChange={(e) => setForm({ ...form, status: e.target.value })}
                 className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
               >
                 <option value="TETAP">Tetap</option>
@@ -282,22 +551,21 @@ export default function AddEmployeeModal({
 
             <div>
               <label className="font-bold text-stone-700 block mb-1">
-                Role Akses Sistem
+                Masa Berlaku Kontrak
               </label>
-              <select
-                value={newEmp.role}
+              <input
+                type="date"
+                disabled={form.status === 'TETAP'}
+                value={form.status === 'TETAP' ? '' : form.contractEndDate}
                 onChange={(e) =>
-                  setNewEmp({ ...newEmp, role: e.target.value })
+                  setForm({ ...form, contractEndDate: e.target.value })
                 }
-                className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
-              >
-                <option value="EMPLOYEE">Employee (Karyawan)</option>
-                <option value="MANAGER">Manager</option>
-                <option value="HR">HR</option>
-              </select>
+                className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832] disabled:opacity-50"
+              />
             </div>
           </div>
 
+          {/* Master Gaji */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="font-bold text-stone-700 block mb-1">
@@ -306,9 +574,9 @@ export default function AddEmployeeModal({
               <input
                 type="number"
                 min="0"
-                value={newEmp.baseSalary}
+                value={form.baseSalary}
                 onChange={(e) =>
-                  setNewEmp({ ...newEmp, baseSalary: e.target.value })
+                  setForm({ ...form, baseSalary: e.target.value })
                 }
                 className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
               />
@@ -321,9 +589,9 @@ export default function AddEmployeeModal({
               <input
                 type="number"
                 min="0"
-                value={newEmp.allowance}
+                value={form.allowance}
                 onChange={(e) =>
-                  setNewEmp({ ...newEmp, allowance: e.target.value })
+                  setForm({ ...form, allowance: e.target.value })
                 }
                 className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-stone-900 outline-none focus:border-[#0f3832]"
               />
@@ -343,7 +611,11 @@ export default function AddEmployeeModal({
               disabled={submitting}
               className="px-5 py-2.5 rounded-xl bg-[#0f3832] hover:bg-[#144941] text-white font-bold shadow-xs transition cursor-pointer disabled:opacity-50"
             >
-              {submitting ? 'Menyimpan...' : 'Simpan Karyawan'}
+              {submitting
+                ? 'Menyimpan...'
+                : isEdit
+                  ? 'Simpan Perubahan'
+                  : 'Simpan Karyawan'}
             </button>
           </div>
         </form>

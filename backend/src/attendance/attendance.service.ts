@@ -516,6 +516,7 @@ export class AttendanceService {
       let alphaCount = 0;
       let leaveAttendanceCount = 0;
       let totalOvertimeMinutes = 0;
+      let totalWorkMinutes = 0;
 
       for (const att of emp.attendances) {
         if (att.status === 'PRESENT') presentCount++;
@@ -526,6 +527,13 @@ export class AttendanceService {
         else if (att.status === 'LEAVE') leaveAttendanceCount++;
 
         totalOvertimeMinutes += att.overtimeMinutes;
+        if (att.clockIn && att.clockOut) {
+          const diffMs =
+            new Date(att.clockOut).getTime() - new Date(att.clockIn).getTime();
+          if (diffMs > 0) {
+            totalWorkMinutes += Math.round(diffMs / 60000);
+          }
+        }
       }
 
       const approvedLeaveDays = emp.leaveRequests.reduce(
@@ -546,6 +554,8 @@ export class AttendanceService {
           late: lateCount,
           alpha: alphaCount,
           leave: Math.max(leaveAttendanceCount, approvedLeaveDays),
+          workMinutes: totalWorkMinutes,
+          workHours: Math.round((totalWorkMinutes / 60) * 100) / 100,
           overtimeMinutes: totalOvertimeMinutes,
           overtimeHours: Math.round((totalOvertimeMinutes / 60) * 100) / 100,
         },
